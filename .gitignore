@@ -1,0 +1,25 @@
+# Environments
+backend/venv/
+node_modules/
+.env
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# AI Models & Large Datasets (GitHub blocks files > 100MB)
+backend/ai_models/*.pkl
+*.csv
+*.xlsx
+*.zip
+
+# Database & Temp Files
+*.db
+*.sqlite3
+temp_*/
+backend/temp*/
+
+# OS generated files
+.DS_Store
+Thumbs.db
