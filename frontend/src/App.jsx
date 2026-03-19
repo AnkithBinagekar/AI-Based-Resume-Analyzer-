@@ -133,7 +133,7 @@ function App() {
   return (
     <div className="container">
       <header className="app-header">
-        <h1>AI Resume Analyzer <span>Enterprise ATS</span></h1>
+        <h1>AI Resume Analyzer </h1>
       </header>
       
       <div className="nav-tabs">

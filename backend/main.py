@@ -94,6 +94,10 @@ async def analyze_resume(
 
     cleaned_jd = clean_jd_with_llm(raw_jd)
     
+    # --- BUG FIX 1: Prevent Empty JD crashes ---
+    if not cleaned_jd or not cleaned_jd.strip():
+        raise HTTPException(status_code=400, detail="Could not extract valid text or skills from the Job Description.")
+
     temp_pdf_path = f"temp_{uuid.uuid4().hex[:6]}_{resume_file.filename}"
     with open(temp_pdf_path, "wb") as buffer:
         shutil.copyfileobj(resume_file.file, buffer)
@@ -124,7 +128,12 @@ async def analyze_resume(
             
         result = ai_engine.compute_hybrid_features(resume_text, cleaned_jd)
 
+        # --- BUG FIX 2: The "100%" Division by Zero Fix ---
         jd_skills = result["skill_analysis"]["jd_skills_detected"]
+        if not jd_skills:
+             result["final_match_score_percentage"] = 0.0
+             result["feature_breakdown"]["skill_overlap_score"] = 0.0
+             
         common_skills = result["skill_analysis"]["common_skills"]
         missing_skills = [skill for skill in jd_skills if skill not in common_skills]
 
@@ -261,6 +270,10 @@ async def analyze_bulk_resumes(
 
     cleaned_jd = clean_jd_with_llm(raw_jd)
 
+    # --- BUG FIX 1 (Bulk): Prevent Empty JD crashes ---
+    if not cleaned_jd or not cleaned_jd.strip():
+        raise HTTPException(status_code=400, detail="Could not extract valid text or skills from the Job Description.")
+
     db_job = models.JobDescription(title="Bulk Upload Batch", description_text=raw_jd)
     db.add(db_job)
     db.commit()
@@ -299,7 +312,12 @@ async def analyze_bulk_resumes(
                     
                 result = ai_engine.compute_hybrid_features(resume_text, cleaned_jd)
 
+                # --- BUG FIX 2 (Bulk): The "100%" Division by Zero Fix ---
                 jd_skills = result["skill_analysis"]["jd_skills_detected"]
+                if not jd_skills:
+                     result["final_match_score_percentage"] = 0.0
+                     result["feature_breakdown"]["skill_overlap_score"] = 0.0
+
                 common_skills = result["skill_analysis"]["common_skills"]
                 missing_skills = [skill for skill in jd_skills if skill not in common_skills]
 

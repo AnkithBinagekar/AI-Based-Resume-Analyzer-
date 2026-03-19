@@ -43,11 +43,15 @@ class AIResumeAnalyzerEngine:
             
         try:
             prompt = f"""
-            Extract ONLY hard technical skills, software tools, frameworks, and formal methodologies 
-            (e.g., Agile, Python, React, Selenium, AWS, SDLC, Manual Testing) from the text.
+            You are an ultra-strict technical ATS skill extractor. 
+            Extract ONLY specific programming languages, software tools, frameworks, libraries, and distinct name-brand technologies (e.g., Python, React, AWS, Docker, PostgreSQL, PyTorch, Monai).
             
-            DO NOT extract soft skills (e.g., leadership, communication).
-            DO NOT extract generic nouns (e.g., project, environment, outcomes, transparency).
+            STRICT NEGATIVE CONSTRAINTS - DO NOT EXTRACT:
+            1. Broad technical domains or buzzwords (e.g., DO NOT extract "Generative AI", "Machine Learning", "Deep Learning Models", "LLMs").
+            2. Generic system components (e.g., DO NOT extract "Backend Services", "Frontend Interfaces", "Databases", "Cloud Platforms", "Rest APIs").
+            3. Project descriptions or pipelines (e.g., DO NOT extract "AI-Powered Web Applications", "Medical Imaging Pipelines", "Linux Environments").
+            
+            If it is not a specific, tangible tool, language, or framework, YOU MUST IGNORE IT.
             
             Return the result EXACTLY as a JSON object with a single key "skills" containing a flat list of strings.
             
@@ -130,12 +134,16 @@ class AIResumeAnalyzerEngine:
             
         if self.nn_scorer:
             features = np.array([[skill_score, semantic_score, lexical_score]])
-            final_score = self.nn_scorer.predict(features)[0]
-            final_score = max(0.0, min(1.0, final_score)) 
+            # The model outputs a percentage (e.g., 15.5)
+            final_score_percentage = self.nn_scorer.predict(features)[0]
+            # Clamp it between 0 and 100 just to be safe
+            final_score_percentage = max(0.0, min(100.0, final_score_percentage)) 
         else:
+            # The fallback outputs a decimal (e.g., 0.155)
             final_score = (skill_score * 0.4) + (semantic_score * 0.4) + (lexical_score * 0.2)
+            final_score_percentage = final_score * 100
             
-        final_score_percentage = round(final_score * 100, 2)
+        final_score_percentage = round(final_score_percentage, 2)
         
         return {
             "final_match_score_percentage": final_score_percentage,
