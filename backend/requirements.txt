@@ -9,3 +9,4 @@ pytesseract
 pillow
 spacy
 scikit-learn
+sentence-transformers
