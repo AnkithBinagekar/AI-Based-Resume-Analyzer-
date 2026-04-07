@@ -36,3 +36,6 @@ class Candidate(Base):
 
     # Link back to the Job Description
     job = relationship("JobDescription", back_populates="candidates")
+    # Add these two lines inside your Candidate class:
+    total_yoe = Column(Float, default=0.0)
+    highest_education = Column(String, default="Unknown")

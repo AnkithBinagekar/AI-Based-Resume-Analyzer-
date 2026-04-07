@@ -109,6 +109,12 @@ class AIResumeAnalyzerEngine:
         return [s.title() for s in final_skills]
 
     def compute_hybrid_features(self, resume_text, jd_text):
+        # --- NEW DEFENSIVE TEXT CLEANING FOR OCR ---
+        # This regex replaces all multiple spaces, tabs, and newlines with a single space.
+        resume_text = re.sub(r'\s+', ' ', resume_text).strip()
+        jd_text = re.sub(r'\s+', ' ', jd_text).strip()
+        # -------------------------------------------
+
         resume_skills = self.extract_strict_skills_with_llm(resume_text)
         jd_skills = self.extract_strict_skills_with_llm(jd_text)
         
