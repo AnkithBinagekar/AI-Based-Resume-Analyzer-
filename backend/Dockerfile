@@ -1,24 +1,28 @@
-# Use official Python runtime as a parent image
+# 1. Use the official Python 3.10 slim image (matching your Render logs)
 FROM python:3.10-slim
 
-# Set working directory
+# 2. Set the working directory inside the container
 WORKDIR /app
 
-# Install system dependencies for OCR and PDF processing
+# 3. Install system dependencies (Tesseract OCR for image text, Poppler for PDFs)
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
+    libtesseract-dev \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
+# 4. Copy your requirements file
 COPY requirements.txt .
+
+# 5. Install all Python packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application
+# 6. CRITICAL FIX: Download the Spacy English language model
+RUN python -m spacy download en_core_web_sm
+
+# 7. Copy the rest of your backend code into the container
 COPY . .
 
-# Expose the port FastAPI runs on
-EXPOSE 8000
-
-# Command to run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 8. Command to run the application using Uvicorn
+# (Render will automatically assign a port via the $PORT variable)
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}
