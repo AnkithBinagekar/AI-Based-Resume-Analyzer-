@@ -7,6 +7,14 @@ import 'react-circular-progressbar/dist/styles.css';
 import XAIDial from './components/XAIDial';
 import './App.css';
 
+// --- API CONFIGURATION ---
+// Comment this out when deploying to the internet:
+// const API_BASE_URL = 'http://127.0.0.1:8001';
+
+// Uncomment this for your live Render URL:
+const API_BASE_URL = 'https://ai-based-resume-analyzer-ucye.onrender.com';
+// -------------------------
+
 function App() {
   const [activeTab, setActiveTab] = useState('analyze'); 
   const [uploadMode, setUploadMode] = useState('single');
@@ -75,14 +83,14 @@ function App() {
 
   const fetchCandidates = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:8001/api/candidates');
+      const response = await axios.get(`${API_BASE_URL}/api/candidates`);
       setDbCandidates(response.data.data);
     } catch (err) { console.error("Failed to fetch candidates", err); }
   };
 
   const fetchJobs = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:8001/api/jobs');
+      const response = await axios.get(`${API_BASE_URL}/api/jobs`);
       setDbJobs(response.data.data);
       if (response.data.data.length > 0 && !selectedSavedJobId) {
         setSelectedSavedJobId(response.data.data[0].id);
@@ -114,7 +122,7 @@ function App() {
     }
 
     try {
-      const endpoint = uploadMode === 'single' ? 'http://127.0.0.1:8001/analyze' : 'http://127.0.0.1:8001/analyze-bulk';
+      const endpoint = uploadMode === 'single' ? `${API_BASE_URL}/analyze` : `${API_BASE_URL}/analyze-bulk`;
       const response = await axios.post(endpoint, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       if (uploadMode === 'single') setSingleResults(response.data.data);
       else setBulkResults(response.data.data);
@@ -145,7 +153,7 @@ function App() {
     }
 
     try {
-      await axios.post('http://127.0.0.1:8001/api/jobs', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await axios.post(`${API_BASE_URL}/api/jobs`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       await fetchJobs(); 
       setNewJobTitle(''); setNewJobDept(''); setNewJobText(''); setNewJobFile(null);
       alert("Job Saved to Database successfully!");
@@ -156,9 +164,9 @@ function App() {
     }
   };
 
-  const handleTailor = async () => { setTailorLoading(true); setTailoredResume(''); const formData = new FormData(); formData.append('resume_file', file); formData.append('job_description', singleResults?.cleaned_jd || jd); try { const response = await axios.post('http://127.0.0.1:8001/tailor', formData, { headers: { 'Content-Type': 'multipart/form-data' } }); setTailoredResume(response.data.tailored_resume); } catch (err) { alert("Failed to tailor"); } finally { setTailorLoading(false); } };
-  const handleGenerateCoverLetter = async () => { setCoverLetterLoading(true); setCoverLetterText(''); const formData = new FormData(); formData.append('resume_file', file); formData.append('job_description', singleResults?.cleaned_jd || jd); try { const response = await axios.post('http://127.0.0.1:8001/generate-cover-letter', formData, { headers: { 'Content-Type': 'multipart/form-data' } }); setCoverLetterText(response.data.cover_letter); } catch (err) { alert("Failed to write letter"); } finally { setCoverLetterLoading(false); } };
-  const handleChat = async (e) => { e.preventDefault(); if (!chatQuestion.trim()) return; const newQuestion = chatQuestion; setChatHistory(prev => [...prev, { role: 'user', content: newQuestion }]); setChatQuestion(''); setChatLoading(true); const formData = new FormData(); formData.append('resume_file', file); formData.append('question', newQuestion); try { const response = await axios.post('http://127.0.0.1:8001/chat-resume', formData, { headers: { 'Content-Type': 'multipart/form-data' } }); setChatHistory(prev => [...prev, { role: 'ai', content: response.data.answer }]); } catch (err) { setChatHistory(prev => [...prev, { role: 'ai', content: "⚠️ Failed to reach AI backend." }]); } finally { setChatLoading(false); } };
+  const handleTailor = async () => { setTailorLoading(true); setTailoredResume(''); const formData = new FormData(); formData.append('resume_file', file); formData.append('job_description', singleResults?.cleaned_jd || jd); try { const response = await axios.post(`${API_BASE_URL}/tailor`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }); setTailoredResume(response.data.tailored_resume); } catch (err) { alert("Failed to tailor"); } finally { setTailorLoading(false); } };
+  const handleGenerateCoverLetter = async () => { setCoverLetterLoading(true); setCoverLetterText(''); const formData = new FormData(); formData.append('resume_file', file); formData.append('job_description', singleResults?.cleaned_jd || jd); try { const response = await axios.post(`${API_BASE_URL}/generate-cover-letter`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }); setCoverLetterText(response.data.cover_letter); } catch (err) { alert("Failed to write letter"); } finally { setCoverLetterLoading(false); } };
+  const handleChat = async (e) => { e.preventDefault(); if (!chatQuestion.trim()) return; const newQuestion = chatQuestion; setChatHistory(prev => [...prev, { role: 'user', content: newQuestion }]); setChatQuestion(''); setChatLoading(true); const formData = new FormData(); formData.append('resume_file', file); formData.append('question', newQuestion); try { const response = await axios.post(`${API_BASE_URL}/chat-resume`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }); setChatHistory(prev => [...prev, { role: 'ai', content: response.data.answer }]); } catch (err) { setChatHistory(prev => [...prev, { role: 'ai', content: "⚠️ Failed to reach AI backend." }]); } finally { setChatLoading(false); } };
 
   const missingSkills = singleResults?.skill_analysis?.jd_skills_detected ? singleResults.skill_analysis.jd_skills_detected.filter(skill => !singleResults.skill_analysis.common_skills?.includes(skill)) : [];
   const innerTabStyle = (isActive) => ({ padding: '12px 18px', cursor: 'pointer', borderBottom: isActive ? '3px solid #3498db' : '3px solid transparent', color: isActive ? '#2c3e50' : '#7f8c8d', fontWeight: isActive ? 'bold' : 'normal', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', fontSize: '0.9rem', flex: '1', whiteSpace: 'nowrap' });
