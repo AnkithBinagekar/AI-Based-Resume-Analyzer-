@@ -1,4 +1,4 @@
-# 1. Use the official Python 3.10 slim image (matching your Render logs)
+# 1. Use the official Python 3.10 slim image
 FROM python:3.10-slim
 
 # 2. Set the working directory inside the container
@@ -14,15 +14,17 @@ RUN apt-get update && apt-get install -y \
 # 4. Copy your requirements file
 COPY requirements.txt .
 
-# 5. Install all Python packages
+# 5. CRITICAL MEMORY FIX: Install CPU-only PyTorch FIRST
+RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# 6. Install all other Python packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 6. CRITICAL FIX: Download the Spacy English language model
+# 7. Download the Spacy English language model
 RUN python -m spacy download en_core_web_sm
 
-# 7. Copy the rest of your backend code into the container
+# 8. Copy the rest of your backend code into the container
 COPY . .
 
-# 8. Command to run the application using Uvicorn
-# (Render will automatically assign a port via the $PORT variable)
+# 9. Command to run the application using Uvicorn
 CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}
