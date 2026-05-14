@@ -7,7 +7,8 @@ import { useLocation } from 'react-router-dom';
 import 'react-circular-progressbar/dist/styles.css';
 import XAIDial from '../components/XAIDial';
 
-const API_BASE_URL = 'http://127.0.0.1:8001';
+//const API_BASE_URL = 'http://127.0.0.1:8001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 
 function CandidateDashboard() {
   const location = useLocation(); 
