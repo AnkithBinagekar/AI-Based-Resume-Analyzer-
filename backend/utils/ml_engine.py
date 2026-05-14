@@ -4,13 +4,14 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 import re
 import pickle
+import joblib
 import numpy as np
 import json
 import os
 from dotenv import load_dotenv
 from groq import Groq
 
-# Load Groq API Key
+# Load Groq API Key (Still used for Cover Letters, Tailor & Chatbot!)
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
@@ -18,43 +19,64 @@ groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 class AIResumeAnalyzerEngine:
     def __init__(self):
         print("Loading NLP Models...")
-        self.nlp = spacy.load("en_core_web_sm")
         self.sbert_model = SentenceTransformer('all-MiniLM-L6-v2')
         
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        backend_dir = os.path.dirname(current_dir)
+        
+        # --- THE ML SCORER ---
         try:
-            with open("ai_models/lsa_skill_model.pkl", "rb") as f:
-                model_data = pickle.load(f)
-                self.vocab = model_data['vocabulary']
-                self.embeddings = model_data['embeddings']
+            rf_model_path = os.path.join(backend_dir, "models", "hybrid_rf_model.pkl")
+            self.rf_scorer = joblib.load(rf_model_path)
+            print("✅ Random Forest Hybrid Scorer Loaded!")
         except Exception as e:
-            self.vocab, self.embeddings = [], []
+            print(f"⚠️ Could not load RF model: {e}")
+            self.rf_scorer = None
+
+        # --- THE NEW ENTERPRISE NLP PIPELINE (EntityRuler) ---
+        print("Loading local spaCy NLP engine with EntityRuler...")
+        self.nlp = spacy.load("en_core_web_sm")
+        
+        # Add the EntityRuler BEFORE the standard NER steps
+        if "entity_ruler" not in self.nlp.pipe_names:
+            self.ruler = self.nlp.add_pipe("entity_ruler", before="ner")
+        else:
+            self.ruler = self.nlp.get_pipe("entity_ruler")
+
+        # Load your pristine, AI-cleaned dictionary
+        dict_path = os.path.join(backend_dir, "output", "clean_tech_skills.json")
+        try:
+            with open(dict_path, "r") as f:
+                clean_skills = json.load(f)
             
-        try:
-            with open("ai_models/mlp_scoring_model.pkl", "rb") as f:
-                self.nn_scorer = pickle.load(f)
-        except Exception as e:
-            self.nn_scorer = None
+            # Create exact-match patterns for the engine
+            patterns = [{"label": "SKILL", "pattern": skill} for skill in clean_skills]
+            self.ruler.add_patterns(patterns)
+            print(f"✅ Successfully loaded {len(patterns)} validated tech skills into the local AI.")
+        except FileNotFoundError:
+            print(f"⚠️ Warning: {dict_path} not found. Local extraction will fail.")
+
+    def extract_skills_local_ner(self, text):
+        """Uses our custom EntityRuler to extract true SKILL entities locally in milliseconds."""
+        doc = self.nlp(text)
+        
+        found_skills = set()
+        for ent in doc.ents:
+            if ent.label_ == "SKILL":
+                found_skills.add(ent.text.strip().title())
+                
+        return list(found_skills)
 
     def extract_strict_skills_with_llm(self, text):
-        """Uses Groq (Llama 3) to extract ONLY true technical skills and tools as a JSON array."""
+        """Uses Groq (Llama 3.1) to dynamically extract skills. (Preserved for Fallback)"""
         if not groq_client:
-            print("⚠️ Groq API Key missing, falling back to LSA extractor.")
-            return self.extract_dynamic_skills_fallback(text)
+            return []
             
         try:
             prompt = f"""
             You are an ultra-strict technical ATS skill extractor. 
-            Extract ONLY specific programming languages, software tools, frameworks, libraries, and distinct name-brand technologies (e.g., Python, React, AWS, Docker, PostgreSQL, PyTorch, Monai).
-            
-            STRICT NEGATIVE CONSTRAINTS - DO NOT EXTRACT:
-            1. Broad technical domains or buzzwords (e.g., DO NOT extract "Generative AI", "Machine Learning", "Deep Learning Models", "LLMs").
-            2. Generic system components (e.g., DO NOT extract "Backend Services", "Frontend Interfaces", "Databases", "Cloud Platforms", "Rest APIs").
-            3. Project descriptions or pipelines (e.g., DO NOT extract "AI-Powered Web Applications", "Medical Imaging Pipelines", "Linux Environments").
-            
-            If it is not a specific, tangible tool, language, or framework, YOU MUST IGNORE IT.
-            
+            Extract ONLY specific programming languages, software tools, frameworks, libraries.
             Return the result EXACTLY as a JSON object with a single key "skills" containing a flat list of strings.
-            
             Text to analyze:
             {text[:3000]} 
             """
@@ -74,49 +96,22 @@ class AIResumeAnalyzerEngine:
             return [str(s).title() for s in skills]
             
         except Exception as e:
-            print(f"Skill Extraction Error (Falling back to LSA): {e}")
-            return self.extract_dynamic_skills_fallback(text)
-
-    def extract_dynamic_skills_fallback(self, text):
-        """Original Spacy LSA Logic (Used as a fallback if the API fails)"""
-        text = text.lower()
-        found_skills = set()
-                
-        doc = self.nlp(text)
-        for token in doc:
-            word = token.text.strip()
-            if word in self.vocab and token.pos_ in ['NOUN', 'PROPN']:
-                found_skills.add(word)
-                
-        if self.vocab:
-            expanded_skills = set()
-            for skill in list(found_skills):
-                if skill in self.vocab:
-                    idx = self.vocab.index(skill)
-                    target_vector = self.embeddings[idx].reshape(1, -1)
-                    similarities = cosine_similarity(target_vector, self.embeddings)[0]
-                    
-                    top_indices = similarities.argsort()[-4:-1][::-1]
-                    for i in top_indices:
-                        related_word = self.vocab[i]
-                        if re.search(r'\b' + re.escape(related_word) + r'\b', text):
-                            expanded_skills.add(related_word)
-            found_skills.update(expanded_skills)
-            
-        stop_words = {'experience', 'years', 'team', 'work', 'data', 'knowledge', 'design', 'project', 'business', 'system', 'technology', 'environment', 'outcomes'}
-        final_skills = [s for s in found_skills if s not in stop_words and len(s) > 1]
-        
-        return [s.title() for s in final_skills]
+            print(f"Skill Extraction Error: {e}")
+            return []
 
     def compute_hybrid_features(self, resume_text, jd_text):
         # --- NEW DEFENSIVE TEXT CLEANING FOR OCR ---
-        # This regex replaces all multiple spaces, tabs, and newlines with a single space.
         resume_text = re.sub(r'\s+', ' ', resume_text).strip()
         jd_text = re.sub(r'\s+', ' ', jd_text).strip()
-        # -------------------------------------------
-
-        resume_skills = self.extract_strict_skills_with_llm(resume_text)
-        jd_skills = self.extract_strict_skills_with_llm(jd_text)
+        
+        # --- THE FINAL HYBRID ARCHITECTURE ---
+        # 1. Core Extraction (100% Local, Offline, Dictionary-Backed)
+        raw_resume_skills = self.extract_skills_local_ner(resume_text)
+        raw_jd_skills = self.extract_skills_local_ner(jd_text)
+        
+        # Strip random single letters just in case
+        resume_skills = [s for s in raw_resume_skills if len(s) > 1 or s.lower() in ['c', 'r']]
+        jd_skills = [s for s in raw_jd_skills if len(s) > 1 or s.lower() in ['c', 'r']]
         
         resume_skills_lower = [s.lower() for s in resume_skills]
         common_skills = [jd_skill for jd_skill in jd_skills if jd_skill.lower() in resume_skills_lower]
@@ -127,6 +122,7 @@ class AIResumeAnalyzerEngine:
         
         skill_score = len(common_skills) / len(jd_skills) if len(jd_skills) > 0 else 0.0
         
+        # 2. Semantic & Lexical Vectors (100% Local SBERT & TF-IDF)
         res_emb = self.sbert_model.encode([resume_text])
         jd_emb = self.sbert_model.encode([jd_text])
         semantic_score = cosine_similarity(res_emb, jd_emb)[0][0]
@@ -138,19 +134,40 @@ class AIResumeAnalyzerEngine:
         except:
             lexical_score = 0.0
             
-        if self.nn_scorer:
-            features = np.array([[skill_score, semantic_score, lexical_score]])
-            # The model outputs a percentage (e.g., 15.5)
-            final_score_percentage = self.nn_scorer.predict(features)[0]
-            # Clamp it between 0 and 100 just to be safe
+        # 3. Use Custom Local Random Forest for Final Scoring
+        if self.rf_scorer:
+            # Order MUST be: Lexical, Semantic, Skill Overlap
+            features = np.array([[lexical_score, semantic_score, skill_score]])
+            final_score_percentage = self.rf_scorer.predict(features)[0]
             final_score_percentage = max(0.0, min(100.0, final_score_percentage)) 
         else:
-            # The fallback outputs a decimal (e.g., 0.155)
             final_score = (skill_score * 0.4) + (semantic_score * 0.4) + (lexical_score * 0.2)
             final_score_percentage = final_score * 100
             
         final_score_percentage = round(final_score_percentage, 2)
         
+# --- NEW: ENTERPRISE SMART ALERTS LOGIC ---
+        smart_alerts = []
+        
+        # 1. Domain Mismatch Alert
+        # If they match over 40% of skills, but the semantic meaning is below 35%
+        if skill_score > 0.40 and semantic_score < 0.35:
+            smart_alerts.append({
+                "type": "warning",
+                "title": "Possible Domain Mismatch",
+                "message": "Candidate possesses the required hard skills, but their past experience context significantly differs from this role."
+            })
+            
+        # 2. Keyword Stuffing / Lexical Fraud Alert
+        # If they use the exact same words (high lexical) but sentences make no sense (low semantic)
+        if lexical_score > 0.50 and semantic_score < 0.20:
+            smart_alerts.append({
+                "type": "danger",
+                "title": "Lexical Anomaly Detected",
+                "message": "High keyword matching with extremely low contextual meaning. Possible resume keyword stuffing."
+            })
+
+        # Add smart_alerts to your final return dictionary
         return {
             "final_match_score_percentage": final_score_percentage,
             "feature_breakdown": {
@@ -162,5 +179,8 @@ class AIResumeAnalyzerEngine:
                 "resume_skills_detected": resume_skills,
                 "jd_skills_detected": jd_skills,
                 "common_skills": common_skills
-            }
+            },
+            "smart_alerts": smart_alerts # <--- Add this new key!
         }
+
+       
