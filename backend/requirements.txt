@@ -9,8 +9,8 @@ pytesseract
 pillow
 spacy
 scikit-learn
-sentence-transformers
 langchain==0.1.13
 langchain-community==0.0.29
 chromadb==0.4.24
 sentence-transformers==2.6.1
+PyJWT==2.8.0
