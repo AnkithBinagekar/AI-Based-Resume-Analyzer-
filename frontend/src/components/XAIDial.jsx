@@ -50,9 +50,7 @@ const XAIDial = ({ featureBreakdown }) => {
             Random Forest Decision Vectors
           </p>
         </div>
-        <div className="px-3 py-1 bg-green-100 text-green-700 text-[10px] font-black uppercase tracking-widest rounded-md self-start md:self-auto">
-          Zero-Hallucination
-        </div>
+        
       </div>
       
       {/* Explicit Height for Recharts */}

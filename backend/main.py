@@ -162,6 +162,39 @@ def extract_yoe_and_edu(resume_text):
         print(f"Extraction Error: {e}")
         return 0.0, "Unknown"
 
+def extract_layout_aware_pdf_text(pdf_path):
+    """
+    Advanced PDF extraction for multi-column resumes.
+    Uses PyMuPDF bounding boxes to group text semantically.
+    """
+    doc = fitz.open(pdf_path)
+    full_text = []
+    
+    for page in doc:
+        # get_text("blocks") returns tuples: (x0, y0, x1, y1, "text", block_no, block_type)
+        blocks = page.get_text("blocks")
+        
+        # CRITICAL VIVA DEFENSE LOGIC:
+        # We sort by x0 (horizontal position) first, THEN y0 (vertical position).
+        # This forces the parser to read the entire left column top-to-bottom,
+        # before moving to the right column, preserving sentence structures for SBERT.
+        blocks.sort(key=lambda b: (b[0], b[1])) 
+        
+        for b in blocks:
+            # block_type == 0 ensures we only grab text, ignoring images/tables
+            if b[6] == 0: 
+                clean_block = b[4].strip()
+                # Strip internal newlines so SBERT sees whole sentences, not fragments
+                clean_block = re.sub(r'\n+', ' ', clean_block)
+                if clean_block:
+                    full_text.append(clean_block)
+                    
+    doc.close()
+    
+    # Double newlines create clean breaks between distinct sections
+    return " \n\n ".join(full_text)
+
+
 @app.post("/analyze")
 async def analyze_resume(
     background_tasks: BackgroundTasks, 
@@ -204,9 +237,8 @@ async def analyze_resume(
         security_report = detect_fraudulent_resume(temp_pdf_path)
         if security_report["is_fraud"]: raise HTTPException(status_code=406, detail=f"🚨 FRAUD DETECTED: {security_report['hidden_words_count']} hidden keywords found.")
         
-        doc = fitz.open(temp_pdf_path)
-        resume_text = " ".join([page.get_text() for page in doc])
-        doc.close()
+        # --- UPGRADED: Layout-Aware Parsing ---
+        resume_text = extract_layout_aware_pdf_text(temp_pdf_path)
         if not resume_text.strip(): raise HTTPException(status_code=400, detail="Could not extract text from the PDF.")
             
         is_blind = str(blind_mode).lower() == 'true'
@@ -597,9 +629,8 @@ async def analyze_bulk_resumes(
         for filename in os.listdir(extract_folder):
             if filename.lower().endswith('.pdf'):
                 file_path = os.path.join(extract_folder, filename)
-                doc = fitz.open(file_path)
-                resume_text = " ".join([page.get_text() for page in doc])
-                doc.close()
+                # --- UPGRADED: Layout-Aware Parsing ---
+                resume_text = extract_layout_aware_pdf_text(file_path)
                 if not resume_text.strip(): continue 
                     
                 if is_blind:
