@@ -369,7 +369,6 @@ async def tailor_resume(
         if not groq_client:
             raise HTTPException(status_code=500, detail="Groq API Key missing.")
             
-        # --- THE USER'S PREFERRED TAILOR PROMPT ---
         system_prompt = """
         You are an Expert Executive Resume Writer. 
         
@@ -400,10 +399,22 @@ async def tailor_resume(
                 {"role": "user", "content": user_prompt}
             ],
             model="llama-3.1-8b-instant",
-            temperature=0.2, # Keep this low so it strictly follows your rules and doesn't hallucinate
+            temperature=0.2, 
             max_tokens=3000
         )
-        return {"status": "success", "tailored_resume": chat_completion.choices[0].message.content.strip()}
+        
+        # 1. Get the newly generated resume text from Groq
+        tailored_text = chat_completion.choices[0].message.content.strip()
+        
+        # 2. RUN THE NEW TEXT THROUGH THE RANDOM FOREST MODEL
+        new_analysis = ai_engine.compute_hybrid_features(tailored_text, job_description)
+        new_score = new_analysis["final_match_score_percentage"]
+
+        return {
+            "status": "success", 
+            "tailored_resume": tailored_text,
+            "new_score": new_score
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to generate tailored resume.")

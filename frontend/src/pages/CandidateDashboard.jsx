@@ -13,6 +13,16 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 function CandidateDashboard() {
   const location = useLocation(); 
   
+// Dynamic Role State for Viva Demo
+  const [userRole, setUserRole] = useState(localStorage.getItem('userRole') || 'recruiter');
+
+  const toggleRole = () => {
+    const newRole = userRole === 'recruiter' ? 'candidate' : 'recruiter';
+    setUserRole(newRole);
+    localStorage.setItem('userRole', newRole);
+    setResultTab('overview'); // Resets the tab so you don't get stuck on a hidden tab
+  };
+
   const [uploadMode, setUploadMode] = useState('single');
   const [blindMode, setBlindMode] = useState(false); 
   const [file, setFile] = useState(null);
@@ -31,7 +41,7 @@ function CandidateDashboard() {
   const [error, setError] = useState('');
   
   const [tailorLoading, setTailorLoading] = useState(false);
-  const [tailoredResume, setTailoredResume] = useState('');
+  const [tailorData, setTailorData] = useState(null);
   const [coverLetterLoading, setCoverLetterLoading] = useState(false);
   const [coverLetterText, setCoverLetterText] = useState('');
   
@@ -83,7 +93,7 @@ function CandidateDashboard() {
     if (jdMode === 'file' && !jdFile) return setError("Please upload a Job Description file.");
 
     setLoading(true); setError(''); setSingleResults(null);
-    setBulkResults(null); setTailoredResume(''); setCoverLetterText(''); 
+    setBulkResults(null); setTailorData(null); setCoverLetterText(''); 
     setChatHistory([]); setResultTab('overview');
 
     const formData = new FormData();
@@ -112,10 +122,54 @@ function CandidateDashboard() {
     } finally { setLoading(false); }
   };
 
-  const handleTailor = async () => { setTailorLoading(true); setTailoredResume(''); const formData = new FormData(); formData.append('resume_file', file); formData.append('job_description', singleResults?.cleaned_jd || jd); try { const response = await axios.post(`${API_BASE_URL}/tailor`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }); setTailoredResume(response.data.tailored_resume); } catch (err) { alert("Failed to tailor"); } finally { setTailorLoading(false); } };
+  const handleTailor = async () => { 
+    setTailorLoading(true); 
+    setTailorData(null); 
+    const formData = new FormData(); 
+    formData.append('resume_file', file); 
+    formData.append('job_description', singleResults?.cleaned_jd || jd); 
+    try { 
+      const response = await axios.post(`${API_BASE_URL}/tailor`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }); 
+      setTailorData({
+        text: response.data.tailored_resume,
+        newScore: response.data.new_score,
+        oldScore: singleResults.final_match_score_percentage
+      });
+    } catch (err) { 
+      alert("Failed to optimize resume"); 
+    } finally { 
+      setTailorLoading(false); 
+    } 
+  };
   const handleGenerateCoverLetter = async () => { setCoverLetterLoading(true); setCoverLetterText(''); const formData = new FormData(); formData.append('resume_file', file); formData.append('job_description', singleResults?.cleaned_jd || jd); try { const response = await axios.post(`${API_BASE_URL}/generate-cover-letter`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }); setCoverLetterText(response.data.cover_letter); } catch (err) { alert("Failed to write letter"); } finally { setCoverLetterLoading(false); } };
   const handleChat = async (e) => { e.preventDefault(); if (!chatQuestion.trim()) return; const newQuestion = chatQuestion; setChatHistory(prev => [...prev, { role: 'user', content: newQuestion }]); setChatQuestion(''); setChatLoading(true); const formData = new FormData(); formData.append('resume_file', file); formData.append('question', newQuestion); try { const response = await axios.post(`${API_BASE_URL}/chat-resume`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }); setChatHistory(prev => [...prev, { role: 'ai', content: response.data.answer }]); } catch (err) { setChatHistory(prev => [...prev, { role: 'ai', content: "⚠️ Failed to reach AI backend." }]); } finally { setChatLoading(false); } };
   
+// ==========================================
+  // XAI REASONING GENERATOR (MATH LOGIC)
+  // ==========================================
+  const generateXAIReasons = (results) => {
+    if (!results) return [];
+    const reasons = [];
+    const semantic = results.feature_breakdown.semantic_score;
+    const lexical = results.feature_breakdown.lexical_score;
+    const skills = results.feature_breakdown.skill_overlap_score;
+
+    // Fraud Check: Lexical vs Semantic anomaly
+    if (lexical > (semantic + 0.3)) {
+      reasons.push({ type: 'danger', text: "Lexical Anomaly: Exact keyword matches are unusually high compared to semantic meaning. (Potential Keyword Stuffing)." });
+    } else if (lexical < 0.2 && semantic > 0.5) {
+      reasons.push({ type: 'positive', text: "Excellent vocabulary variance. Candidate explains concepts well without copying the JD wording." });
+    }
+
+    if (skills >= 0.8) reasons.push({ type: 'positive', text: "Candidate possesses the vast majority of required hard skills." });
+    else if (skills < 0.4) reasons.push({ type: 'negative', text: "Severe skill gap detected. Missing core technical requirements." });
+
+    if (semantic >= 0.6) reasons.push({ type: 'positive', text: "High semantic alignment. Past experience contextually matches the job role." });
+    else if (semantic < 0.3 && skills > 0.5) reasons.push({ type: 'warning', text: "Domain Mismatch Risk: Has the hard skills, but applied in a different context." });
+
+    return reasons;
+  };
+
   // Robust Native PDF Export using react-to-print v3 API
   const handleDownloadReport = useReactToPrint({
     contentRef: reportRef,
@@ -135,13 +189,31 @@ function CandidateDashboard() {
 
       <div className="max-w-7xl mx-auto px-6">
         
-        {/* Header */}
-        <div className="mb-10 animate-in fade-in slide-in-from-top-4 duration-500">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100/50 text-emerald-700 text-xs font-bold tracking-widest uppercase mb-3 border border-emerald-200">
-            🔍 Intelligence Scanner
+       {/* Header */}
+        <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100/50 text-emerald-700 text-xs font-bold tracking-widest uppercase mb-3 border border-emerald-200">
+              🔍 Intelligence Scanner
+            </div>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Analysis Portal</h2>
+            <p className="text-slate-500 font-medium mt-2">Upload candidate documents to run multi-vector contextual analysis.</p>
           </div>
-          <h2 className="text-4xl font-black text-slate-900 tracking-tight">Analysis Portal</h2>
-          <p className="text-slate-500 font-medium mt-2">Upload candidate documents to run multi-vector contextual analysis.</p>
+          
+          {/* VIVA DEMO: Role Toggle */}
+          <div className="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
+            <button 
+              onClick={toggleRole}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${userRole === 'candidate' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              🎓 Candidate View
+            </button>
+            <button 
+              onClick={toggleRole}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${userRole === 'recruiter' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+              🏢 HR View
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-700">
@@ -219,18 +291,20 @@ function CandidateDashboard() {
                 </div>
 
                 {/* Blind Mode Toggle */}
-                <div 
-                  onClick={() => setBlindMode(!blindMode)}
-                  className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all mb-8 ${blindMode ? 'bg-emerald-50 border-emerald-500 ring-4 ring-emerald-100 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}
-                >
-                  <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors shadow-sm ${blindMode ? 'bg-emerald-500 text-white' : 'bg-white border border-slate-300'}`}>
-                    {blindMode && "✓"}
+                {userRole === 'recruiter' && (
+                  <div 
+                    onClick={() => setBlindMode(!blindMode)}
+                    className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all mb-8 ${blindMode ? 'bg-emerald-50 border-emerald-500 ring-4 ring-emerald-100 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}
+                  >
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors shadow-sm ${blindMode ? 'bg-emerald-500 text-white' : 'bg-white border border-slate-300'}`}>
+                      {blindMode && "✓"}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className={`text-sm font-bold ${blindMode ? 'text-emerald-800' : 'text-slate-700'}`}>🛡️ Blind Hiring Mode</h4>
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-0.5">Strip Identifiable Info</p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h4 className={`text-sm font-bold ${blindMode ? 'text-emerald-800' : 'text-slate-700'}`}>🛡️ Blind Hiring Mode</h4>
-                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-0.5">Strip Identifiable Info</p>
-                  </div>
-                </div>
+                )}
 
                 <button type="submit" disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2">
                   {loading ? (
@@ -287,17 +361,28 @@ function CandidateDashboard() {
                 </div>
 
                 {/* NEW: Modern Pill-Tabs */}
-                <div className="p-4 border-b border-slate-100 bg-white">
-                  <div className="flex bg-slate-100/80 p-1.5 rounded-2xl overflow-x-auto hide-scrollbar gap-1">
-                    <button onClick={() => setResultTab('overview')} className={innerTabStyle(resultTab === 'overview')}>📊 Overview</button>
-                    <button onClick={() => setResultTab('logic')} className={innerTabStyle(resultTab === 'logic')}>⚙️ AI Logic</button>
-                    <button onClick={() => setResultTab('skills')} className={innerTabStyle(resultTab === 'skills')}>🎯 Skills</button>
-                    <button onClick={() => setResultTab('coach')} className={innerTabStyle(resultTab === 'coach')}>✨ Coach</button>
-                    <button onClick={() => setResultTab('tailor')} className={innerTabStyle(resultTab === 'tailor')}>🪄 Tailor</button>
-                    <button onClick={() => setResultTab('coverLetter')} className={innerTabStyle(resultTab === 'coverLetter')}>✉️ Letter</button>
-                    <button onClick={() => setResultTab('chat')} className={innerTabStyle(resultTab === 'chat')}>🤖 Chat</button>
-                  </div>
-                </div>
+                {/* Sub-Tabs */}
+<div className="flex bg-slate-50 border-b border-slate-200 overflow-x-auto hide-scrollbar">
+  <button onClick={() => setResultTab('overview')} className={innerTabStyle(resultTab === 'overview')}>📊 Overview</button>
+  <button onClick={() => setResultTab('skills')} className={innerTabStyle(resultTab === 'skills')}>🎯 Skills</button>
+  
+  {/* ONLY HR SEES THIS */}
+  {userRole === 'recruiter' && (
+    <>
+      <button onClick={() => setResultTab('logic')} className={innerTabStyle(resultTab === 'logic')}>⚙️ AI Logic & Fraud</button>
+      <button onClick={() => setResultTab('chat')} className={innerTabStyle(resultTab === 'chat')}>🤖 RAG Copilot</button>
+    </>
+  )}
+
+  {/* ONLY CANDIDATES SEE THIS */}
+  {userRole === 'candidate' && (
+    <>
+      <button onClick={() => setResultTab('coach')} className={innerTabStyle(resultTab === 'coach')}>✨ Coach</button>
+      <button onClick={() => setResultTab('tailor')} className={innerTabStyle(resultTab === 'tailor')}>🪄 Tailor Resume</button>
+      <button onClick={() => setResultTab('coverLetter')} className={innerTabStyle(resultTab === 'coverLetter')}>✉️ Cover Letter</button>
+    </>
+  )}
+</div>
 
                 <div className="p-8">
                   {/* OVERVIEW TAB (Printable) */}
@@ -372,22 +457,44 @@ function CandidateDashboard() {
 
                   {/* AI LOGIC TAB */}
                   {resultTab === 'logic' && (
-                    <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 shadow-inner">
-                      <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
-                        <span className="p-2 bg-indigo-100 rounded-xl text-indigo-600 shadow-sm">🧠</span> 
-                        Random Forest Decision Engine
-                      </h3>
-                      <p className="text-slate-500 mb-8 font-medium leading-relaxed max-w-2xl">The system evaluates the candidate using an ensemble of decision trees to weigh deep semantic context over simple keyword frequency.</p>
-                      <div className="grid gap-5">
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 border-l-8 border-l-blue-500 shadow-sm hover:shadow-md transition-shadow">
-                          <h4 className="font-black text-blue-700 text-lg">1. Multimodal Extraction</h4>
-                          <p className="text-sm text-slate-600 mt-2 font-medium">Text vectors are mathematically analyzed for Skill Density, SBERT Semantic Distance, and TF-IDF Lexical Overlap.</p>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 border-l-8 border-l-amber-500 shadow-sm hover:shadow-md transition-shadow">
-                          <h4 className="font-black text-amber-700 text-lg">2. Ensemble Validation</h4>
-                          <p className="text-sm text-slate-600 mt-2 font-medium">The Random Forest model cross-references these specific features to successfully ignore "AI keyword stuffing" and isolate true technical proficiency.</p>
-                        </div>
+                    <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 shadow-inner space-y-6">
+                      
+                      <div>
+                        <h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-2">
+                          <span className="p-2 bg-indigo-100 rounded-xl text-indigo-600 shadow-sm">🧠</span> 
+                          Random Forest Decision Engine
+                        </h3>
+                        <p className="text-slate-500 font-medium leading-relaxed max-w-2xl">The system evaluates the candidate using an ensemble of decision trees to weigh deep semantic context over simple keyword frequency.</p>
                       </div>
+
+                      {/* LIVE MATH TRANSLATION PANEL */}
+                      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                         <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-4 flex items-center gap-2">
+                           <span>👁️‍🗨️</span> Live AI Decision Reasoning
+                         </h4>
+                         <ul className="space-y-3">
+                           {generateXAIReasons(singleResults).map((reason, idx) => (
+                             <li key={idx} className="flex items-start gap-3 text-sm font-medium p-3 rounded-xl bg-slate-50 border border-slate-100">
+                               {reason.type === 'positive' && <span className="text-emerald-500 text-lg mt-0.5">✓</span>}
+                               {reason.type === 'negative' && <span className="text-red-500 text-lg mt-0.5">✕</span>}
+                               {reason.type === 'warning' && <span className="text-amber-500 text-lg mt-0.5">⚠️</span>}
+                               {reason.type === 'danger' && <span className="text-red-600 text-lg mt-0.5 animate-pulse">🚨</span>}
+                               
+                               <span className={
+                                 reason.type === 'positive' ? 'text-emerald-800' :
+                                 reason.type === 'negative' ? 'text-slate-700' :
+                                 reason.type === 'warning' ? 'text-amber-800' : 'text-red-700 font-bold'
+                               }>
+                                 {reason.text}
+                               </span>
+                             </li>
+                           ))}
+                           {generateXAIReasons(singleResults).length === 0 && (
+                             <li className="text-sm text-slate-500 italic p-2">Average candidate profile. No significant anomalies detected.</li>
+                           )}
+                         </ul>
+                      </div>
+                      
                     </div>
                   )}
 
@@ -430,21 +537,48 @@ function CandidateDashboard() {
                     </div>
                   )}
 
-                  {/* TAILOR TAB */}
+                 {/* TAILOR TAB (Before vs After Metric) */}
                   {resultTab === 'tailor' && (
                     <div className="py-6">
-                      {!tailoredResume ? (
+                      {!tailorData ? (
                         <div className="text-center bg-slate-50 rounded-3xl border border-slate-200 p-12">
                           <div className="text-5xl mb-6">🪄</div>
                           <h3 className="text-xl font-black text-slate-800 mb-2">AI Resume Optimization</h3>
-                          <p className="text-sm font-medium text-slate-500 mb-8 max-w-md mx-auto">Generate an ATS-friendly, keyword-optimized version of this candidate's resume specifically tailored to the target Job Description.</p>
+                          <p className="text-sm font-medium text-slate-500 mb-8 max-w-md mx-auto">Generate an ATS-friendly, keyword-optimized version of this candidate's resume and re-evaluate it through our Random Forest model.</p>
                           <button onClick={handleTailor} disabled={tailorLoading} className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-10 rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-70">
-                            {tailorLoading ? 'GENERATING ENHANCEMENTS...' : 'OPTIMIZE RESUME'}
+                            {tailorLoading ? 'GENERATING & RE-SCORING...' : 'OPTIMIZE & RE-SCORE'}
                           </button>
                         </div>
                       ) : (
-                        <div className="text-left bg-white p-8 rounded-3xl border border-slate-200 shadow-sm prose prose-slate max-w-none prose-headings:text-slate-800 prose-p:font-medium">
-                          <ReactMarkdown>{tailoredResume}</ReactMarkdown>
+                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                          
+                          {/* THE METRICS BANNER */}
+                          <div className="flex flex-col md:flex-row items-center justify-between bg-slate-900 p-6 rounded-3xl text-white shadow-lg overflow-hidden relative">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                            
+                            <div className="relative z-10 mb-4 md:mb-0 text-center md:text-left">
+                              <span className="px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest mb-3 inline-block">Optimization Success</span>
+                              <h3 className="text-2xl font-black">Feedback Loop Complete</h3>
+                              <p className="text-slate-400 text-sm font-medium mt-1">Generated text re-processed through the Random Forest ensemble.</p>
+                            </div>
+                            
+                            <div className="flex items-center gap-6 relative z-10 bg-white/10 px-6 py-4 rounded-2xl backdrop-blur-sm border border-white/10">
+                              <div className="text-center">
+                                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Original Match</p>
+                                <p className="text-3xl font-black text-slate-300">{tailorData.oldScore.toFixed(1)}%</p>
+                              </div>
+                              <div className="text-slate-500 text-2xl font-light">→</div>
+                              <div className="text-center">
+                                <p className="text-[10px] uppercase font-bold text-emerald-400 tracking-widest mb-1">Optimized Match</p>
+                                <p className="text-3xl font-black text-emerald-400 animate-pulse">{tailorData.newScore.toFixed(1)}%</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* GENERATED TEXT */}
+                          <div className="text-left bg-white p-8 rounded-3xl border border-slate-200 shadow-sm prose prose-slate max-w-none prose-headings:text-slate-800 prose-p:font-medium">
+                            <ReactMarkdown>{tailorData.text}</ReactMarkdown>
+                          </div>
                         </div>
                       )}
                     </div>

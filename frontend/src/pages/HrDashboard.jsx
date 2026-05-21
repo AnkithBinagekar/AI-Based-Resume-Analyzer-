@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import XAIDial from '../components/XAIDial'; // NEW: Importing your XAI Radar Chart
+import XAIDial from '../components/XAIDial';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 
@@ -10,9 +10,11 @@ function HrDashboard() {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('board'); 
-  
-  // NEW: State to control the Deep Dive Modal
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+  
+  // NEW: State for Recruiter Notes (Priority 1)
+  const [recruiterNote, setRecruiterNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     fetchCandidates();
@@ -21,7 +23,22 @@ function HrDashboard() {
   const fetchCandidates = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/candidates`);
-      setCandidates(response.data.data);
+      
+      // Initialize candidates with an AI-derived status AND a human-override flag
+      const initializedCandidates = response.data.data.map(c => {
+        let aiStatus = 'archived';
+        if (c.final_score >= 75) aiStatus = 'shortlisted';
+        else if (c.final_score >= 50) aiStatus = 'review';
+        
+        return {
+          ...c,
+          pipeline_status: c.pipeline_status || aiStatus, // Allows DB to override if saved
+          is_human_overridden: false,
+          recruiter_notes: c.recruiter_notes || ''
+        };
+      });
+      
+      setCandidates(initializedCandidates);
     } catch (err) {
       console.error("Failed to fetch candidates", err);
     } finally {
@@ -29,9 +46,92 @@ function HrDashboard() {
     }
   };
 
-  const topMatches = candidates.filter(c => c.final_score >= 75);
-  const reviewNeeded = candidates.filter(c => c.final_score >= 50 && c.final_score < 75);
-  const archived = candidates.filter(c => c.final_score < 50);
+// ==========================================
+  // PRIORITY 9: RECRUITER ANALYTICS DASHBOARD
+  // ==========================================
+  const generateAnalytics = () => {
+    if (candidates.length === 0) return { avgMatch: 0, fraudCount: 0, topSkill: 'None' };
+
+    // 1. Average Match Score
+    const avgMatch = (candidates.reduce((sum, c) => sum + c.final_score, 0) / candidates.length).toFixed(1);
+
+    // 2. Lexical Fraud Alerts (Keyword Stuffing)
+    const fraudCount = candidates.filter(c => c.lexical_score > (c.semantic_score + 0.3)).length;
+
+    // 3. Top Missing Skill Across Entire Database
+    const allMissingSkills = candidates.flatMap(c => c.missing_skills ? c.missing_skills.split(',').map(s => s.trim()) : []);
+    const skillFrequencies = allMissingSkills.reduce((acc, skill) => {
+      if (skill) acc[skill] = (acc[skill] || 0) + 1;
+      return acc;
+    }, {});
+    
+    let topSkill = 'None';
+    let maxCount = 0;
+    for (const [skill, count] of Object.entries(skillFrequencies)) {
+      if (count > maxCount) {
+        maxCount = count;
+        topSkill = skill;
+      }
+    }
+
+    return { avgMatch, fraudCount, topSkill };
+  };
+
+  const { avgMatch, fraudCount, topSkill } = generateAnalytics();
+
+  // ==========================================
+  // PRIORITY 2: HUMAN OVERRIDE DRAG & DROP
+  // ==========================================
+  const handleDragStart = (e, candidateId) => {
+    e.dataTransfer.setData('candidateId', candidateId);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault(); // Required to allow dropping
+  };
+
+  const handleDrop = (e, newStatus) => {
+    e.preventDefault();
+    const candidateId = Number(e.dataTransfer.getData('candidateId'));
+    
+    setCandidates(prev => prev.map(c => {
+      if (c.id === candidateId && c.pipeline_status !== newStatus) {
+        return { 
+          ...c, 
+          pipeline_status: newStatus,
+          is_human_overridden: true // Flags that the human overruled the AI
+        };
+      }
+      return c;
+    }));
+    
+    // Note for Viva: In a real production app, you would fire an axios.patch here 
+    // to save the new status to the backend. We use React state for the demo speed.
+  };
+
+  // ==========================================
+  // PRIORITY 1: RECRUITER NOTES
+  // ==========================================
+  const openDeepDive = (candidate) => {
+    setSelectedCandidate(candidate);
+    setRecruiterNote(candidate.recruiter_notes || '');
+  };
+
+  const handleSaveNote = () => {
+    setSavingNote(true);
+    // Simulate API delay for realism
+    setTimeout(() => {
+      setCandidates(prev => prev.map(c => 
+        c.id === selectedCandidate.id ? { ...c, recruiter_notes: recruiterNote } : c
+      ));
+      setSavingNote(false);
+    }, 600);
+  };
+
+  // Pipeline Filtering
+  const topMatches = candidates.filter(c => c.pipeline_status === 'shortlisted');
+  const reviewNeeded = candidates.filter(c => c.pipeline_status === 'review');
+  const archived = candidates.filter(c => c.pipeline_status === 'archived');
 
   const getScoreBadge = (score) => {
     if (score >= 75) return <span className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full text-xs font-black">{score.toFixed(1)}%</span>;
@@ -39,10 +139,43 @@ function HrDashboard() {
     return <span className="px-3 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full text-xs font-black">{score.toFixed(1)}%</span>;
   };
 
+// ==========================================
+  // XAI REASONING GENERATOR
+  // Translates raw vectors into human-readable HR insights
+  // ==========================================
+  const generateXAIReasons = (candidate) => {
+    const reasons = [];
+
+    // 1. Skill Analysis
+    if (candidate.skill_overlap_score >= 0.8) {
+      reasons.push({ type: 'positive', text: "Candidate possesses the vast majority of required hard skills." });
+    } else if (candidate.skill_overlap_score < 0.4) {
+      reasons.push({ type: 'negative', text: "Severe skill gap detected. Missing core technical requirements." });
+    }
+
+    // 2. Semantic Context (The "Real Experience" check)
+    if (candidate.semantic_score >= 0.6) {
+      reasons.push({ type: 'positive', text: "High semantic alignment. Past experience contextually matches the job role." });
+    } else if (candidate.semantic_score < 0.3 && candidate.skill_overlap_score > 0.5) {
+      reasons.push({ type: 'warning', text: "Domain Mismatch Risk: Has the hard skills, but applied in a different context." });
+    }
+
+    // 3. Fraud / Keyword Stuffing Check (Lexical vs Semantic anomaly)
+    if (candidate.lexical_score > (candidate.semantic_score + 0.3)) {
+      reasons.push({ type: 'danger', text: "Lexical Anomaly: Exact keyword matches are unusually high compared to semantic meaning. (Potential Keyword Stuffing)." });
+    } else if (candidate.lexical_score < 0.2 && candidate.semantic_score > 0.5) {
+      reasons.push({ type: 'positive', text: "Excellent vocabulary variance. Candidate explains concepts well without copying the JD wording." });
+    }
+
+    return reasons;
+  };
+
   const CandidateCard = ({ candidate }) => (
     <div 
-      onClick={() => setSelectedCandidate(candidate)} // NEW: Trigger the modal on click
-      className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md hover:-translate-y-1 transition-all duration-300 group cursor-pointer hover:border-blue-300 relative overflow-hidden"
+      draggable // Enables HTML5 Drag and Drop
+      onDragStart={(e) => handleDragStart(e, candidate.id)}
+      onClick={() => openDeepDive(candidate)} 
+      className={`bg-white p-5 rounded-2xl shadow-sm border hover:shadow-md hover:-translate-y-1 transition-all duration-300 cursor-grab active:cursor-grabbing relative overflow-hidden ${candidate.is_human_overridden ? 'border-blue-300 ring-2 ring-blue-50' : 'border-slate-200 hover:border-slate-300'}`}
     >
       <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50/50 rounded-bl-full -mr-4 -mt-4 z-0 group-hover:scale-125 transition-transform duration-500"></div>
       
@@ -55,7 +188,12 @@ function HrDashboard() {
             <h4 className="text-sm font-bold text-slate-800 truncate" title={candidate.filename}>
               {candidate.filename.replace('🔒 Anonymous_Candidate_', 'Candidate_')}
             </h4>
-            <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mt-0.5">Job #{candidate.job_id}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Job #{candidate.job_id}</p>
+              {candidate.is_human_overridden && (
+                <span className="text-[9px] uppercase font-black tracking-wider text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-sm">✋ Override</span>
+              )}
+            </div>
           </div>
         </div>
         {getScoreBadge(candidate.final_score)}
@@ -71,13 +209,6 @@ function HrDashboard() {
           <p className="text-xs font-black text-slate-700 truncate" title={candidate.highest_education}>{candidate.highest_education || 'Unknown'}</p>
         </div>
       </div>
-
-      <div className="relative z-10 flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
-        <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          View Full AI Report <span className="text-sm">→</span>
-        </span>
-        <span className="text-xs font-black text-slate-700 group-hover:opacity-0 transition-opacity">{(candidate.skill_overlap_score * 100).toFixed(0)}% Overlap</span>
-      </div>
     </div>
   );
 
@@ -92,10 +223,10 @@ function HrDashboard() {
         <div className="mb-10 flex flex-col md:flex-row justify-between items-end gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100/50 text-blue-700 text-xs font-bold tracking-widest uppercase mb-3 border border-blue-200">
-              <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span> Live Pipeline
+              <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span> Human-in-the-Loop Pipeline
             </div>
             <h2 className="text-4xl font-black text-slate-900 tracking-tight">Recruitment ATS</h2>
-            <p className="text-slate-500 font-medium mt-2 max-w-xl">Automated candidate triage powered by Explainable AI and Random Forest metrics.</p>
+            <p className="text-slate-500 font-medium mt-2 max-w-xl">AI automates the triage. Humans retain the executive override.</p>
           </div>
           
           <div className="flex items-center gap-4 bg-white/80 backdrop-blur-md p-1.5 rounded-xl border border-slate-200 shadow-sm">
@@ -103,19 +234,63 @@ function HrDashboard() {
               onClick={() => setViewMode('board')} 
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'board' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
             >
-              Board View
+              Kanban
             </button>
             <button 
               onClick={() => setViewMode('list')} 
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'list' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
             >
-              List View
+              List
             </button>
           </div>
         </div>
 
+{/* --- NEW: RECRUITER ANALYTICS DASHBOARD --- */}
+        {!loading && candidates.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
+            
+            {/* Metric 1: Total Pipeline */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-inner">👥</div>
+              <div>
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total Scans</p>
+                <p className="text-2xl font-black text-slate-800">{candidates.length}</p>
+              </div>
+            </div>
+
+            {/* Metric 2: Average Quality */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shadow-inner">📊</div>
+              <div>
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Avg Match</p>
+                <p className="text-2xl font-black text-emerald-600">{avgMatch}%</p>
+              </div>
+            </div>
+
+            {/* Metric 3: Security & Fraud */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-full -mr-4 -mt-4 z-0"></div>
+              <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center text-xl shadow-inner relative z-10">🚨</div>
+              <div className="relative z-10">
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Fraud Alerts</p>
+                <p className="text-2xl font-black text-red-600">{fraudCount}</p>
+              </div>
+            </div>
+
+            {/* Metric 4: Macro Skill Gap */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-xl shadow-inner">🎯</div>
+              <div className="overflow-hidden">
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Top Missing Skill</p>
+                <p className="text-lg font-black text-slate-800 truncate" title={topSkill}>{topSkill}</p>
+              </div>
+            </div>
+
+          </div>
+        )}
+
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-32 bg-white/50 backdrop-blur-sm rounded-3xl border border-slate-200">
+          <div className="flex flex-col items-center justify-center py-32">
              <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
              <p className="text-slate-500 font-bold tracking-widest uppercase text-sm animate-pulse">Syncing Enterprise Database...</p>
           </div>
@@ -123,20 +298,24 @@ function HrDashboard() {
           <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm border border-slate-200 p-20 text-center animate-in fade-in zoom-in-95">
             <div className="text-6xl mb-6">📭</div>
             <h3 className="text-2xl font-black text-slate-800 mb-2">No Candidates Found</h3>
-            <p className="text-slate-500 mb-8 font-medium">Your ATS database is currently empty. Upload resumes to populate the pipeline.</p>
+            <p className="text-slate-500 mb-8 font-medium">Your ATS database is currently empty.</p>
             <button onClick={() => navigate('/candidate')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-md transition-all active:scale-95">
-              Go to Upload Portal
+              Go to Scanner Portal
             </button>
           </div>
         ) : (
           <div className="animate-in fade-in duration-700">
             
-            {/* --- KANBAN BOARD VIEW --- */}
+            {/* --- KANBAN BOARD VIEW WITH DRAG & DROP --- */}
             {viewMode === 'board' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                 
                 {/* Column 1: Shortlisted */}
-                <div className="bg-slate-100/60 backdrop-blur-sm rounded-3xl p-4 border border-slate-200 shadow-inner">
+                <div 
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, 'shortlisted')}
+                  className="bg-slate-100/60 backdrop-blur-sm rounded-3xl p-4 border border-slate-200 shadow-inner min-h-[500px]"
+                >
                   <div className="flex items-center justify-between mb-4 px-2">
                     <h3 className="font-black text-slate-800 flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span> Shortlisted
@@ -145,12 +324,15 @@ function HrDashboard() {
                   </div>
                   <div className="space-y-4">
                     {topMatches.map(c => <CandidateCard key={c.id} candidate={c} />)}
-                    {topMatches.length === 0 && <div className="p-8 text-center text-sm font-medium text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">No top matches yet</div>}
                   </div>
                 </div>
 
                 {/* Column 2: Review Needed */}
-                <div className="bg-slate-100/60 backdrop-blur-sm rounded-3xl p-4 border border-slate-200 shadow-inner">
+                <div 
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, 'review')}
+                  className="bg-slate-100/60 backdrop-blur-sm rounded-3xl p-4 border border-slate-200 shadow-inner min-h-[500px]"
+                >
                   <div className="flex items-center justify-between mb-4 px-2">
                     <h3 className="font-black text-slate-800 flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50"></span> Review Needed
@@ -159,12 +341,15 @@ function HrDashboard() {
                   </div>
                   <div className="space-y-4">
                     {reviewNeeded.map(c => <CandidateCard key={c.id} candidate={c} />)}
-                    {reviewNeeded.length === 0 && <div className="p-8 text-center text-sm font-medium text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">No average matches</div>}
                   </div>
                 </div>
 
                 {/* Column 3: Archived */}
-                <div className="bg-slate-100/60 backdrop-blur-sm rounded-3xl p-4 border border-slate-200 shadow-inner opacity-80 hover:opacity-100 transition-opacity">
+                <div 
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, 'archived')}
+                  className="bg-slate-100/60 backdrop-blur-sm rounded-3xl p-4 border border-slate-200 shadow-inner min-h-[500px] opacity-80 hover:opacity-100 transition-opacity"
+                >
                   <div className="flex items-center justify-between mb-4 px-2">
                     <h3 className="font-black text-slate-800 flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full bg-slate-400 shadow-sm shadow-slate-400/50"></span> Archived
@@ -173,184 +358,213 @@ function HrDashboard() {
                   </div>
                   <div className="space-y-4">
                     {archived.map(c => <CandidateCard key={c.id} candidate={c} />)}
-                    {archived.length === 0 && <div className="p-8 text-center text-sm font-medium text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">Pipeline clean</div>}
                   </div>
                 </div>
 
               </div>
             )}
-
-            {/* --- LIST VIEW (FALLBACK) --- */}
-            {viewMode === 'list' && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="p-5 text-xs font-black text-slate-500 uppercase tracking-widest">Candidate File</th>
-                        <th className="p-5 text-xs font-black text-slate-500 uppercase tracking-widest">Job ID</th>
-                        <th className="p-5 text-xs font-black text-slate-500 uppercase tracking-widest">Overall Match</th>
-                        <th className="p-5 text-xs font-black text-slate-500 uppercase tracking-widest hidden md:table-cell">Skill Overlap</th>
-                        <th className="p-5 text-xs font-black text-slate-500 uppercase tracking-widest hidden lg:table-cell">Exp / Edu</th>
-                        <th className="p-5 text-xs font-black text-slate-500 uppercase tracking-widest">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {candidates.map((candidate) => (
-                        <tr key={candidate.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-5">
-                            <div className="flex items-center gap-3">
-                              <span className="text-2xl">{candidate.filename.includes('🔒') ? '🕵️‍♂️' : '📄'}</span>
-                              <span className={`text-sm font-bold truncate max-w-[200px] ${candidate.filename.includes('🔒') ? 'text-emerald-700' : 'text-slate-800'}`}>
-                                {candidate.filename}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="p-5 text-sm font-bold text-slate-500">#{candidate.job_id}</td>
-                          <td className="p-5">{getScoreBadge(candidate.final_score)}</td>
-                          <td className="p-5 hidden md:table-cell text-sm font-semibold text-slate-600">
-                            {(candidate.skill_overlap_score * 100).toFixed(1)}%
-                          </td>
-                          <td className="p-5 hidden lg:table-cell">
-                            <div className="text-sm font-bold text-slate-800">{candidate.total_yoe || 0} Yrs</div>
-                            <div className="text-[10px] font-bold text-slate-400 uppercase truncate max-w-[150px]">{candidate.highest_education || 'Unknown'}</div>
-                          </td>
-                          <td className="p-5">
-                            <button 
-                              onClick={() => setSelectedCandidate(candidate)}
-                              className="text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
-                            >
-                              Deep Dive
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
           </div>
         )}
       </div>
 
       {/* =========================================
-          THE DEEP DIVE MODAL (Explainable AI)
+          THE DEEP DIVE MODAL (Explainable AI & HITL Actions)
           ========================================= */}
       {selectedCandidate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-          
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
             
             {/* Modal Header */}
             <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-start bg-slate-900 text-white">
               <div>
-                <span className="px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest mb-3 inline-block">
+                <span className="px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest mb-3 inline-flex items-center gap-2">
                   Intelligence Report • Job #{selectedCandidate.job_id}
+                  {selectedCandidate.is_human_overridden && <span className="bg-blue-600 text-white px-2 py-0.5 rounded-md">✋ Human Override Active</span>}
                 </span>
                 <h2 className="text-3xl font-black leading-tight flex items-center gap-3">
                   {selectedCandidate.filename.includes('🔒') ? '🛡️' : '📄'} 
-                  {selectedCandidate.filename}
+                  {selectedCandidate.filename.replace('🔒 Anonymous_Candidate_', 'Candidate_')}
                 </h2>
               </div>
-              <button 
-                onClick={() => setSelectedCandidate(null)}
-                className="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-colors font-bold"
-              >
-                ✕
-              </button>
+              
+              <div className="flex items-center gap-4">
+                {/* PRIORITY 3: ONE-CLICK OUTREACH EMAIL */}
+                <a 
+                  href={`mailto:candidate@example.com?subject=Interview Invitation: Application Review&body=Hi there,%0D%0A%0D%0AWe have reviewed your application and our AI-assisted platform flagged an impressive ${selectedCandidate.final_score.toFixed(0)}% skill overlap for this role.%0D%0A%0D%0AWe would love to schedule a technical interview.%0D%0A%0D%0ABest regards,%0D%0AHR Team`}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
+                >
+                  <span>✉️</span> Draft Outreach
+                </a>
+                <button 
+                  onClick={() => setSelectedCandidate(null)}
+                  className="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-colors font-bold"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Modal Body */}
-            <div className="p-8 overflow-y-auto flex-1 custom-scrollbar bg-slate-50">
+            <div className="overflow-y-auto flex-1 custom-scrollbar bg-slate-50 flex flex-col md:flex-row">
               
-              {/* Highlight Metrics */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
-                  <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Total Match</p>
-                  <p className={`text-3xl font-black ${selectedCandidate.final_score >= 75 ? 'text-emerald-500' : selectedCandidate.final_score >= 50 ? 'text-amber-500' : 'text-slate-500'}`}>
-                    {selectedCandidate.final_score.toFixed(1)}%
-                  </p>
+              {/* LEFT SIDE: AI Analytics */}
+              <div className="p-8 flex-1 border-r border-slate-200">
+                <div className="grid grid-cols-2 gap-4 mb-8">
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
+                    <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Total Match</p>
+                    <p className={`text-3xl font-black ${selectedCandidate.final_score >= 75 ? 'text-emerald-500' : selectedCandidate.final_score >= 50 ? 'text-amber-500' : 'text-slate-500'}`}>
+                      {selectedCandidate.final_score.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
+                    <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Semantic Score</p>
+                    <p className="text-xl font-bold text-slate-700">{(selectedCandidate.semantic_score * 100).toFixed(1)}%</p>
+                  </div>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
-                  <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Semantic Score</p>
-                  <p className="text-xl font-bold text-slate-700">{(selectedCandidate.semantic_score * 100).toFixed(1)}%</p>
-                </div>
-                <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm text-center bg-emerald-50/30">
-                  <p className="text-[10px] font-black uppercase text-emerald-600 mb-1">Experience</p>
-                  <p className="text-xl font-bold text-emerald-800">{selectedCandidate.total_yoe || 0} Years</p>
-                </div>
-                <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm text-center bg-emerald-50/30 overflow-hidden">
-                  <p className="text-[10px] font-black uppercase text-emerald-600 mb-1">Education</p>
-                  <p className="text-sm font-bold text-emerald-800 truncate px-2" title={selectedCandidate.highest_education}>
-                    {selectedCandidate.highest_education || 'Unknown'}
-                  </p>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center justify-center mb-8">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6">Explainable AI Vectors</h3>
+                  <XAIDial featureBreakdown={{
+                    skill_overlap_score: selectedCandidate.skill_overlap_score,
+                    semantic_score: selectedCandidate.semantic_score,
+                    lexical_score: selectedCandidate.lexical_score
+                  }} />
+                </div>
+
+                {/* --- NEW: XAI REASONING PANEL --- */}
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-inner mb-8">
+                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3 flex items-center gap-2">
+                    <span>🧠</span> AI Decision Reasoning
+                  </h4>
+                  <ul className="space-y-2.5">
+                    {generateXAIReasons(selectedCandidate).map((reason, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm font-medium">
+                        {reason.type === 'positive' && <span className="text-emerald-500 mt-0.5">✓</span>}
+                        {reason.type === 'negative' && <span className="text-red-500 mt-0.5">✕</span>}
+                        {reason.type === 'warning' && <span className="text-amber-500 mt-0.5">⚠️</span>}
+                        {reason.type === 'danger' && <span className="text-red-600 mt-0.5 animate-pulse">🚨</span>}
+                        
+                        <span className={
+                          reason.type === 'positive' ? 'text-emerald-800' :
+                          reason.type === 'negative' ? 'text-slate-700' :
+                          reason.type === 'warning' ? 'text-amber-800' : 'text-red-700 font-bold'
+                        }>
+                          {reason.text}
+                        </span>
+                      </li>
+                    ))}
+                    {generateXAIReasons(selectedCandidate).length === 0 && (
+                      <li className="text-sm text-slate-500 italic">Average candidate profile. No significant anomalies detected.</li>
+                    )}
+                  </ul>
+                </div>
                 
-                {/* Left Side: XAI Radar Chart */}
-                <div className="md:col-span-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center justify-center">
-                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 text-center w-full">Explainable AI Vectors</h3>
-                  <div className="w-full flex justify-center">
-                    <XAIDial featureBreakdown={{
-                      skill_overlap_score: selectedCandidate.skill_overlap_score,
-                      semantic_score: selectedCandidate.semantic_score,
-                      lexical_score: selectedCandidate.lexical_score
-                    }} />
-                  </div>
-                </div>
-
-                {/* Right Side: Skill Breakdown */}
-                <div className="md:col-span-7 grid grid-rows-2 gap-4">
-                  
-                  {/* Matched Skills */}
-                  <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                    <h4 className="font-black text-emerald-600 uppercase text-xs tracking-widest flex items-center gap-2 mb-4">
-                      <span className="w-2 h-2 bg-emerald-600 rounded-full"></span> Matched Skills
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <h4 className="font-black text-emerald-600 uppercase text-[10px] tracking-widest mb-3">Matched Skills</h4>
+                    <div className="flex flex-wrap gap-1.5">
                       {selectedCandidate.matched_skills ? selectedCandidate.matched_skills.split(',').map((skill, idx) => (
-                        <span key={idx} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-bold shadow-sm">
-                          {skill.trim()}
-                        </span>
-                      )) : <span className="text-xs text-slate-400">No matched skills recorded.</span>}
+                        <span key={idx} className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-md text-[10px] font-bold">{skill.trim()}</span>
+                      )) : <span className="text-xs text-slate-400">None</span>}
                     </div>
                   </div>
-
-                  {/* Missing Skills */}
-                  <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                    <h4 className="font-black text-red-500 uppercase text-xs tracking-widest flex items-center gap-2 mb-4">
-                      <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> Missing Requirements
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <h4 className="font-black text-red-500 uppercase text-[10px] tracking-widest mb-3">Missing Requirements</h4>
+                    <div className="flex flex-wrap gap-1.5">
                       {selectedCandidate.missing_skills ? selectedCandidate.missing_skills.split(',').map((skill, idx) => (
-                        <span key={idx} className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-100 rounded-lg text-xs font-bold shadow-sm">
-                          {skill.trim()}
-                        </span>
-                      )) : <span className="text-xs text-slate-400 text-center w-full mt-2">Perfect Skill Match! No missing skills.</span>}
+                        <span key={idx} className="px-2 py-1 bg-red-50 text-red-600 border border-red-100 rounded-md text-[10px] font-bold">{skill.trim()}</span>
+                      )) : <span className="text-xs text-slate-400">Perfect match.</span>}
                     </div>
                   </div>
-
                 </div>
               </div>
-            </div>
-            
-            {/* Modal Footer */}
-            <div className="p-6 bg-white border-t border-slate-100 flex justify-between items-center">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                Analyzed by Random Forest Ensemble
-              </p>
-              <button 
-                onClick={() => setSelectedCandidate(null)}
-                className="px-8 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-all shadow-md active:scale-95"
-              >
-                Close Report
-              </button>
-            </div>
 
+              {/* RIGHT SIDE: Human Collaboration Layer (Priority 1) */}
+              <div className="w-full md:w-96 bg-white p-8 flex flex-col">
+                <div className="mb-6">
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <span>✍️</span> Human Evaluation
+                  </h3>
+                  <p className="text-xs font-bold text-slate-500 mt-1 uppercase tracking-wider">Recruiter Notes & Oversight</p>
+                </div>
+
+                <div className="flex-1 flex flex-col">
+                  <textarea 
+                    value={recruiterNote}
+                    onChange={(e) => setRecruiterNote(e.target.value)}
+                    placeholder="E.g., AI flagged a missing AWS skill, but candidate has GCP experience. Proceeding to technical round..."
+                    className="flex-1 w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm resize-none custom-scrollbar"
+                  />
+                  <button 
+                    onClick={handleSaveNote}
+                    disabled={savingNote || recruiterNote === (selectedCandidate.recruiter_notes || '')}
+                    className="mt-4 w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50"
+                  >
+                    {savingNote ? "Saving..." : "Save Collaboration Notes"}
+                  </button>
+                </div>
+                
+               {/* --- NEW: ENTERPRISE AUDIT TIMELINE --- */}
+                <div className="mt-6 border-t border-slate-200 pt-6">
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2">
+                    <span>🕒</span> System Activity Timeline
+                  </h4>
+                  
+                  <div className="relative border-l-2 border-slate-200 ml-3 space-y-6 pb-2">
+                    
+                    {/* Step 1: Ingestion */}
+                    <div className="relative pl-6">
+                      <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-slate-200 border-2 border-white"></span>
+                      <p className="text-xs font-bold text-slate-800">Document Ingested</p>
+                      <p className="text-[10px] text-slate-500 font-medium mt-0.5">Parsed via PyMuPDF Layout-Aware Engine.</p>
+                      {selectedCandidate.filename.includes('🔒') && (
+                        <p className="text-[10px] text-indigo-600 font-bold mt-1 bg-indigo-50 inline-block px-2 py-0.5 rounded">🛡️ PII scrubbed. Blind hiring enforced.</p>
+                      )}
+                    </div>
+
+                    {/* Step 2: AI Analysis */}
+                    <div className="relative pl-6">
+                      <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-sm"></span>
+                      <p className="text-xs font-bold text-slate-800">AI Ensemble Analysis</p>
+                      <p className="text-[10px] text-slate-500 font-medium mt-0.5">Scored {selectedCandidate.final_score.toFixed(1)}% via Random Forest Model.</p>
+                    </div>
+
+                    {/* Step 3: Initial Triage */}
+                    <div className="relative pl-6">
+                      <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-slate-400 border-2 border-white shadow-sm"></span>
+                      <p className="text-xs font-bold text-slate-800">Automated Pipeline Placement</p>
+                      <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                        Categorized based on AI multi-vector threshold.
+                      </p>
+                    </div>
+
+                    {/* Step 4: Human Override (Only shows if recruiter dragged & dropped it) */}
+                    {selectedCandidate.is_human_overridden && (
+                      <div className="relative pl-6 animate-in fade-in slide-in-from-left-2">
+                        <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-amber-500 border-2 border-white shadow-sm shadow-amber-500/30"></span>
+                        <p className="text-xs font-black text-amber-600">Human Override Executed</p>
+                        <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                          Manually moved to <span className="uppercase font-bold text-amber-600">{selectedCandidate.pipeline_status}</span> by Recruiter.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Step 5: Recruiter Notes (Only shows if notes were saved) */}
+                    {selectedCandidate.recruiter_notes && (
+                       <div className="relative pl-6 animate-in fade-in slide-in-from-left-2">
+                        <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-slate-800 border-2 border-white shadow-sm"></span>
+                        <p className="text-xs font-bold text-slate-800">Collaboration Note Appended</p>
+                        <div className="text-[10px] text-slate-600 font-medium mt-1 bg-slate-50 p-2 rounded-lg border border-slate-100 line-clamp-2 italic">
+                          "{selectedCandidate.recruiter_notes}"
+                        </div>
+                      </div>
+                    )}
+                    
+                  </div>
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
       )}
