@@ -46,7 +46,7 @@ function HrDashboard() {
     }
   };
 
-// ==========================================
+  // ==========================================
   // PRIORITY 9: RECRUITER ANALYTICS DASHBOARD
   // ==========================================
   const generateAnalytics = () => {
@@ -104,9 +104,6 @@ function HrDashboard() {
       }
       return c;
     }));
-    
-    // Note for Viva: In a real production app, you would fire an axios.patch here 
-    // to save the new status to the backend. We use React state for the demo speed.
   };
 
   // ==========================================
@@ -139,32 +136,38 @@ function HrDashboard() {
     return <span className="px-3 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full text-xs font-black">{score.toFixed(1)}%</span>;
   };
 
-// ==========================================
-  // XAI REASONING GENERATOR
+  // ==========================================
+  // XAI REASONING GENERATOR (HR TRANSLATION)
   // Translates raw vectors into human-readable HR insights
   // ==========================================
   const generateXAIReasons = (candidate) => {
+    if (!candidate) return [];
     const reasons = [];
+    
+    // Parse floats to guarantee safe math evaluation
+    const semantic = parseFloat(candidate.semantic_score);
+    const lexical = parseFloat(candidate.lexical_score);
+    const skills = parseFloat(candidate.skill_overlap_score);
 
-    // 1. Skill Analysis
-    if (candidate.skill_overlap_score >= 0.8) {
-      reasons.push({ type: 'positive', text: "Candidate possesses the vast majority of required hard skills." });
-    } else if (candidate.skill_overlap_score < 0.4) {
+    // 1. The Fraud Check (White-texting)
+    if (lexical > (semantic + 0.3)) {
+      reasons.push({ type: 'danger', text: "Lexical Anomaly: Exact keyword match is unusually high compared to actual contextual experience. Potential Keyword Stuffing." });
+    } else if (lexical < 0.2 && semantic > 0.5) {
+      reasons.push({ type: 'positive', text: "Excellent vocabulary variance. Candidate explains concepts well without blindly copying the Job Description." });
+    }
+
+    // 2. The Hard Skills Check
+    if (skills >= 0.8) {
+      reasons.push({ type: 'positive', text: "Candidate possesses the vast majority of required technical tools." });
+    } else if (skills < 0.4) {
       reasons.push({ type: 'negative', text: "Severe skill gap detected. Missing core technical requirements." });
     }
 
-    // 2. Semantic Context (The "Real Experience" check)
-    if (candidate.semantic_score >= 0.6) {
+    // 3. The Context Check
+    if (semantic >= 0.6) {
       reasons.push({ type: 'positive', text: "High semantic alignment. Past experience contextually matches the job role." });
-    } else if (candidate.semantic_score < 0.3 && candidate.skill_overlap_score > 0.5) {
-      reasons.push({ type: 'warning', text: "Domain Mismatch Risk: Has the hard skills, but applied in a different context." });
-    }
-
-    // 3. Fraud / Keyword Stuffing Check (Lexical vs Semantic anomaly)
-    if (candidate.lexical_score > (candidate.semantic_score + 0.3)) {
-      reasons.push({ type: 'danger', text: "Lexical Anomaly: Exact keyword matches are unusually high compared to semantic meaning. (Potential Keyword Stuffing)." });
-    } else if (candidate.lexical_score < 0.2 && candidate.semantic_score > 0.5) {
-      reasons.push({ type: 'positive', text: "Excellent vocabulary variance. Candidate explains concepts well without copying the JD wording." });
+    } else if (semantic < 0.3 && skills > 0.5) {
+      reasons.push({ type: 'warning', text: "Domain Mismatch Risk: Has the technical skills, but applied them in a different context." });
     }
 
     return reasons;
@@ -172,7 +175,7 @@ function HrDashboard() {
 
   const CandidateCard = ({ candidate }) => (
     <div 
-      draggable // Enables HTML5 Drag and Drop
+      draggable 
       onDragStart={(e) => handleDragStart(e, candidate.id)}
       onClick={() => openDeepDive(candidate)} 
       className={`bg-white p-5 rounded-2xl shadow-sm border hover:shadow-md hover:-translate-y-1 transition-all duration-300 cursor-grab active:cursor-grabbing relative overflow-hidden ${candidate.is_human_overridden ? 'border-blue-300 ring-2 ring-blue-50' : 'border-slate-200 hover:border-slate-300'}`}
@@ -245,11 +248,9 @@ function HrDashboard() {
           </div>
         </div>
 
-{/* --- NEW: RECRUITER ANALYTICS DASHBOARD --- */}
+        {/* RECRUITER ANALYTICS DASHBOARD */}
         {!loading && candidates.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
-            
-            {/* Metric 1: Total Pipeline */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-inner">👥</div>
               <div>
@@ -258,7 +259,6 @@ function HrDashboard() {
               </div>
             </div>
 
-            {/* Metric 2: Average Quality */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shadow-inner">📊</div>
               <div>
@@ -267,7 +267,6 @@ function HrDashboard() {
               </div>
             </div>
 
-            {/* Metric 3: Security & Fraud */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-full -mr-4 -mt-4 z-0"></div>
               <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center text-xl shadow-inner relative z-10">🚨</div>
@@ -277,7 +276,6 @@ function HrDashboard() {
               </div>
             </div>
 
-            {/* Metric 4: Macro Skill Gap */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-xl shadow-inner">🎯</div>
               <div className="overflow-hidden">
@@ -285,7 +283,6 @@ function HrDashboard() {
                 <p className="text-lg font-black text-slate-800 truncate" title={topSkill}>{topSkill}</p>
               </div>
             </div>
-
           </div>
         )}
 
@@ -305,12 +302,9 @@ function HrDashboard() {
           </div>
         ) : (
           <div className="animate-in fade-in duration-700">
-            
-            {/* --- KANBAN BOARD VIEW WITH DRAG & DROP --- */}
             {viewMode === 'board' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                 
-                {/* Column 1: Shortlisted */}
                 <div 
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, 'shortlisted')}
@@ -327,7 +321,6 @@ function HrDashboard() {
                   </div>
                 </div>
 
-                {/* Column 2: Review Needed */}
                 <div 
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, 'review')}
@@ -344,7 +337,6 @@ function HrDashboard() {
                   </div>
                 </div>
 
-                {/* Column 3: Archived */}
                 <div 
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, 'archived')}
@@ -388,7 +380,6 @@ function HrDashboard() {
               </div>
               
               <div className="flex items-center gap-4">
-                {/* PRIORITY 3: ONE-CLICK OUTREACH EMAIL */}
                 <a 
                   href={`mailto:candidate@example.com?subject=Interview Invitation: Application Review&body=Hi there,%0D%0A%0D%0AWe have reviewed your application and our AI-assisted platform flagged an impressive ${selectedCandidate.final_score.toFixed(0)}% skill overlap for this role.%0D%0A%0D%0AWe would love to schedule a technical interview.%0D%0A%0D%0ABest regards,%0D%0AHR Team`}
                   className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2"
@@ -409,6 +400,8 @@ function HrDashboard() {
               
               {/* LEFT SIDE: AI Analytics */}
               <div className="p-8 flex-1 border-r border-slate-200">
+                
+                {/* --- HR TRANSLATION: "Semantic" is now "Contextual Exp." --- */}
                 <div className="grid grid-cols-2 gap-4 mb-8">
                   <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
                     <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Total Match</p>
@@ -417,7 +410,7 @@ function HrDashboard() {
                     </p>
                   </div>
                   <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
-                    <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Semantic Score</p>
+                    <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Contextual Exp. (Semantic)</p>
                     <p className="text-xl font-bold text-slate-700">{(selectedCandidate.semantic_score * 100).toFixed(1)}%</p>
                   </div>
                 </div>
@@ -431,18 +424,20 @@ function HrDashboard() {
                   }} />
                 </div>
 
-                {/* --- NEW: XAI REASONING PANEL --- */}
-                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-inner mb-8">
-                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3 flex items-center gap-2">
-                    <span>🧠</span> AI Decision Reasoning
+                {/* --- NEW: HR AI SCREENING INSIGHTS PANEL --- */}
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-inner mb-8">
+                  <h4 className="text-xs font-black uppercase text-slate-500 tracking-widest mb-4 flex items-center gap-2">
+                    <span className="p-1.5 bg-indigo-100 rounded-lg text-indigo-600">🧠</span> 
+                    AI Screening Insights
                   </h4>
-                  <ul className="space-y-2.5">
+                  
+                  <ul className="space-y-3">
                     {generateXAIReasons(selectedCandidate).map((reason, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm font-medium">
-                        {reason.type === 'positive' && <span className="text-emerald-500 mt-0.5">✓</span>}
-                        {reason.type === 'negative' && <span className="text-red-500 mt-0.5">✕</span>}
-                        {reason.type === 'warning' && <span className="text-amber-500 mt-0.5">⚠️</span>}
-                        {reason.type === 'danger' && <span className="text-red-600 mt-0.5 animate-pulse">🚨</span>}
+                      <li key={idx} className="flex items-start gap-3 text-sm font-medium p-4 rounded-xl bg-white border border-slate-100 shadow-sm">
+                        {reason.type === 'positive' && <span className="text-emerald-500 text-lg mt-0.5">✓</span>}
+                        {reason.type === 'negative' && <span className="text-red-500 text-lg mt-0.5">✕</span>}
+                        {reason.type === 'warning' && <span className="text-amber-500 text-lg mt-0.5">⚠️</span>}
+                        {reason.type === 'danger' && <span className="text-red-600 text-lg mt-0.5 animate-pulse">🚨</span>}
                         
                         <span className={
                           reason.type === 'positive' ? 'text-emerald-800' :
@@ -453,15 +448,19 @@ function HrDashboard() {
                         </span>
                       </li>
                     ))}
+                    
                     {generateXAIReasons(selectedCandidate).length === 0 && (
-                      <li className="text-sm text-slate-500 italic">Average candidate profile. No significant anomalies detected.</li>
+                      <li className="text-sm text-slate-500 italic p-3 bg-white rounded-xl border border-slate-100">
+                        Average profile alignment. No significant positive or negative anomalies detected.
+                      </li>
                     )}
                   </ul>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                    <h4 className="font-black text-emerald-600 uppercase text-[10px] tracking-widest mb-3">Matched Skills</h4>
+                    {/* Updated Label below */}
+                    <h4 className="font-black text-emerald-600 uppercase text-[10px] tracking-widest mb-3">Matched Tools & Skills</h4>
                     <div className="flex flex-wrap gap-1.5">
                       {selectedCandidate.matched_skills ? selectedCandidate.matched_skills.split(',').map((skill, idx) => (
                         <span key={idx} className="px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-md text-[10px] font-bold">{skill.trim()}</span>
@@ -479,7 +478,7 @@ function HrDashboard() {
                 </div>
               </div>
 
-              {/* RIGHT SIDE: Human Collaboration Layer (Priority 1) */}
+              {/* RIGHT SIDE: Human Collaboration Layer */}
               <div className="w-full md:w-96 bg-white p-8 flex flex-col">
                 <div className="mb-6">
                   <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
@@ -504,15 +503,12 @@ function HrDashboard() {
                   </button>
                 </div>
                 
-               {/* --- NEW: ENTERPRISE AUDIT TIMELINE --- */}
                 <div className="mt-6 border-t border-slate-200 pt-6">
                   <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2">
                     <span>🕒</span> System Activity Timeline
                   </h4>
                   
                   <div className="relative border-l-2 border-slate-200 ml-3 space-y-6 pb-2">
-                    
-                    {/* Step 1: Ingestion */}
                     <div className="relative pl-6">
                       <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-slate-200 border-2 border-white"></span>
                       <p className="text-xs font-bold text-slate-800">Document Ingested</p>
@@ -522,14 +518,12 @@ function HrDashboard() {
                       )}
                     </div>
 
-                    {/* Step 2: AI Analysis */}
                     <div className="relative pl-6">
                       <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-sm"></span>
                       <p className="text-xs font-bold text-slate-800">AI Ensemble Analysis</p>
                       <p className="text-[10px] text-slate-500 font-medium mt-0.5">Scored {selectedCandidate.final_score.toFixed(1)}% via Random Forest Model.</p>
                     </div>
 
-                    {/* Step 3: Initial Triage */}
                     <div className="relative pl-6">
                       <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-slate-400 border-2 border-white shadow-sm"></span>
                       <p className="text-xs font-bold text-slate-800">Automated Pipeline Placement</p>
@@ -538,7 +532,6 @@ function HrDashboard() {
                       </p>
                     </div>
 
-                    {/* Step 4: Human Override (Only shows if recruiter dragged & dropped it) */}
                     {selectedCandidate.is_human_overridden && (
                       <div className="relative pl-6 animate-in fade-in slide-in-from-left-2">
                         <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-amber-500 border-2 border-white shadow-sm shadow-amber-500/30"></span>
@@ -549,7 +542,6 @@ function HrDashboard() {
                       </div>
                     )}
 
-                    {/* Step 5: Recruiter Notes (Only shows if notes were saved) */}
                     {selectedCandidate.recruiter_notes && (
                        <div className="relative pl-6 animate-in fade-in slide-in-from-left-2">
                         <span className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-slate-800 border-2 border-white shadow-sm"></span>

@@ -105,11 +105,12 @@ function NavigationBar() {
 function App() {
   return (
     <BrowserRouter>
-      {/* Make sure the main background fills the screen and prevents horizontal scrolling on phones */}
-      <div className="min-h-[100dvh] bg-slate-50 font-sans text-slate-900 overflow-x-hidden selection:bg-blue-200">
+      {/* Removed the hardcoded bg-slate-50 here so the dark landing page works! */}
+      <div className="min-h-[100dvh] font-sans text-slate-900 overflow-x-hidden selection:bg-blue-200">
         <NavigationBar />
         
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
+        {/* 🚨 REMOVED the <main> padding and max-width classes so pages can be edge-to-edge */}
+        <main className="w-full">
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />

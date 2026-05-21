@@ -8,19 +8,20 @@ const XAIDial = ({ featureBreakdown }) => {
   if (!featureBreakdown) return null;
 
   // Transform the backend decimals (0.0 to 1.0) into UI percentages (0 to 100)
+  // UPDATED: Translated subjects into "HR English"
   const data = [
     {
-      subject: 'Hard Skill Overlap',
+      subject: 'Matched Tools & Skills',
       score: Math.round(featureBreakdown.skill_overlap_score * 100),
       fullMark: 100,
     },
     {
-      subject: 'Semantic Context',
+      subject: 'Contextual Exp. (Semantic)',
       score: Math.round(featureBreakdown.semantic_score * 100),
       fullMark: 100,
     },
     {
-      subject: 'Lexical Match',
+      subject: 'Exact Keyword Match (Lexical)',
       score: Math.round(featureBreakdown.lexical_score * 100),
       fullMark: 100,
     }
@@ -40,24 +41,11 @@ const XAIDial = ({ featureBreakdown }) => {
   };
 
   return (
-    <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200 w-full animate-in fade-in zoom-in-95 duration-500">
-      <div className="mb-2 flex flex-col md:flex-row md:items-center justify-between gap-2">
-        <div>
-          <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
-            <span className="text-blue-600">⬡</span> Explainable AI (XAI)
-          </h3>
-          <p className="text-sm text-slate-500 font-medium mt-1">
-            Random Forest Decision Vectors
-          </p>
-        </div>
-        
-      </div>
-      
-      {/* Explicit Height for Recharts */}
-      <div className="h-64 md:h-72 w-full mt-4">
+    <div className="w-full flex flex-col items-center">
+      <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <RadarChart cx="50%" cy="50%" outerRadius="75%" data={data}>
-            <PolarGrid stroke="#e2e8f0" strokeDasharray="3 3" />
+          <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
+            <PolarGrid stroke="#e2e8f0" />
             <PolarAngleAxis 
               dataKey="subject" 
               tick={{ fill: '#475569', fontSize: 11, fontWeight: '800' }} 
@@ -82,17 +70,18 @@ const XAIDial = ({ featureBreakdown }) => {
         </ResponsiveContainer>
       </div>
 
-      <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
+      {/* UPDATED: Footer text to match the new HR terminology */}
+      <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-3 gap-2 text-center w-full">
         <div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase">Lexical</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Keyword Match</p>
           <p className="text-sm font-black text-slate-700">{data[2].score}%</p>
         </div>
         <div className="border-l border-r border-slate-100">
-          <p className="text-[10px] font-bold text-slate-400 uppercase">Semantic</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Contextual Exp.</p>
           <p className="text-sm font-black text-slate-700">{data[1].score}%</p>
         </div>
         <div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase">Overlap</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Tools & Skills</p>
           <p className="text-sm font-black text-slate-700">{data[0].score}%</p>
         </div>
       </div>
