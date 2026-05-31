@@ -202,6 +202,7 @@ async def analyze_resume(
     job_description_text: str = Form(None),
     job_description_file: UploadFile = File(None),
     blind_mode: str = Form("false"),
+    job_id: str = Form(None), # <--- ADD THIS LINE
     db: Session = Depends(get_db)
 ):
     if not job_description_text and not job_description_file:
@@ -235,7 +236,25 @@ async def analyze_resume(
 
     try:
         security_report = detect_fraudulent_resume(temp_pdf_path)
-        if security_report["is_fraud"]: raise HTTPException(status_code=406, detail=f"🚨 FRAUD DETECTED: {security_report['hidden_words_count']} hidden keywords found.")
+        if security_report["is_fraud"]: 
+            # 🛡️ NEW: Log the fraud attempt in the database so HR can track it!
+            db_candidate = models.Candidate(
+                job_id=int(job_id) if job_id else None,
+                filename=f"🚨 [FRAUD] {resume_file.filename}",
+                final_score=0.0,
+                skill_overlap_score=0.0,
+                semantic_score=0.0,
+                lexical_score=0.0,
+                matched_skills="None",
+                missing_skills="ALL",
+                total_yoe=0.0,
+                highest_education="Unknown"
+            )
+            db.add(db_candidate)
+            db.commit()
+            
+            # Now throw the error to the scanner portal
+            raise HTTPException(status_code=406, detail=f"🚨 FRAUD DETECTED: {security_report.get('details', 'Adversarial manipulation found.')}")
         
         # --- UPGRADED: Layout-Aware Parsing ---
         resume_text = extract_layout_aware_pdf_text(temp_pdf_path)
@@ -488,17 +507,14 @@ async def chat_with_resume(
         raise HTTPException(status_code=500, detail="Groq API Key missing.")
 
     candidate_id = resume_file.filename
-
-    # 1. Create a unique cache key based on the candidate and the exact question
     cache_key = f"{candidate_id}_{question.lower().strip()}"
     
-    # 2. If we already answered this, return it instantly! (0 tokens, 0ms latency)
     if cache_key in chat_memory_cache:
         print(f"⚡ [CACHE HIT] Returning saved answer for: {question}")
         return {"status": "success", "answer": chat_memory_cache[cache_key], "cached": True}
 
     # ========================================================
-    # PHASE 3 STEP 1: MULTI-QUERY GENERATION (The "Fusion" part)
+    # PHASE 3 STEP 1: MULTI-QUERY GENERATION
     # ========================================================
     query_gen_prompt = f"""
     You are an AI assistant helping a recruiter search a candidate's resume.
@@ -516,44 +532,31 @@ async def chat_with_resume(
         query_completion = groq_client.chat.completions.create(
             messages=[{"role": "user", "content": query_gen_prompt}],
             model="llama-3.1-8b-instant",
-            temperature=0.2 # Slight creativity to generate good synonyms
+            temperature=0.2 
         )
         raw_queries = query_completion.choices[0].message.content.strip()
-        
-        # Split the generated text into a list of queries
         search_queries = [q.strip("- *\"'") for q in raw_queries.split('\n') if q.strip()]
-        
-        # Always append the original question just to be safe
         search_queries.append(question)
-        print(f"🤖 [Fusion RAG] Generated Queries: {search_queries}")
-        
     except Exception as e:
         print(f"⚠️ [Fusion RAG] Query generation failed: {e}")
-        search_queries = [question] # Fallback safely to standard RAG
-
+        search_queries = [question] 
 
     # ========================================================
     # PHASE 3 STEP 2: MULTI-RETRIEVAL & DEDUPLICATION
     # ========================================================
     all_retrieved_chunks = []
     
-    # Search ChromaDB for EVERY variation of the question
     for q in search_queries:
-        # We use k=2 here so we don't pull too much data per query
         chunks = retrieve_relevant_chunks(candidate_id, q, k=2) 
         all_retrieved_chunks.extend(chunks)
 
-    # Deduplicate the chunks! (If multiple queries found the same chunk, keep only one)
     unique_chunks = list(set(all_retrieved_chunks))
     
     if not unique_chunks:
          return {"status": "success", "answer": "I cannot find any relevant information in the resume database for this candidate."}
 
-    # Cap the maximum chunks so we don't blow up the LLM context window
     final_context_chunks = unique_chunks[:6]
     context = "\n\n---\n\n".join(final_context_chunks)
-    print(f"🧩 [Fusion RAG] Fused {len(final_context_chunks)} unique chunks for context.")
-
 
     # ========================================================
     # PHASE 2: CORRECTIVE EVALUATION & GENERATION
@@ -583,12 +586,10 @@ async def chat_with_resume(
         chat_completion = groq_client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model="llama-3.1-8b-instant",
-            temperature=0.0 # Strictly factual
+            temperature=0.0 
         )
         
         final_answer = chat_completion.choices[0].message.content.strip()
-        
-        # 3. Save the result to our memory cache for next time
         chat_memory_cache[cache_key] = final_answer
         
         return {"status": "success", "answer": final_answer}
@@ -597,12 +598,80 @@ async def chat_with_resume(
         print(f"Chat Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to process chat.")
 
+
+# ========================================================
+# UPGRADED ENDPOINT: GLOBAL HR CHAT (With JD Selection)
+# ========================================================
+@app.post("/api/global-chat")
+async def global_database_chat(
+    question: str = Form(...),
+    job_id: str = Form(None), 
+    db: Session = Depends(get_db)
+):
+    if not groq_client:
+        raise HTTPException(status_code=500, detail="Groq API Key missing.")
+
+    if job_id and job_id.strip() != "":
+        db_job_id = int(job_id)
+        candidates = db.query(models.Candidate).filter(models.Candidate.job_id == db_job_id).all()
+        target_job = db.query(models.JobDescription).filter(models.JobDescription.id == db_job_id).first()
+        job_context = f"TARGET ROLE FOCUS: {target_job.title}\nJob Details: {target_job.description_text[:1000]}" if target_job else "Target Role Focus: Unknown"
+    else:
+        candidates = db.query(models.Candidate).all()
+        job_context = "TARGET ROLE FOCUS: Entire Company Database (No specific role selected)"
+
+    if not candidates:
+        total_in_db = db.query(models.Candidate).count()
+        return {
+            "status": "success", 
+            "answer": f"I checked the database but found 0 candidates linked to this specific job. (Note: There are {total_in_db} total candidates in the system, but none match this Job ID filter. Have you scanned candidates specifically for this role?)"
+        }
+
+    db_context = "--- ENTERPRISE TALENT DATABASE ---\n"
+    for c in candidates:
+        display_name = c.filename.replace('🔒 Anonymous_Candidate_', 'Candidate_')
+        db_context += f"- ID: {c.id} | Name: {display_name} | Match Score: {c.final_score:.1f}% | Experience: {c.total_yoe} Yrs | Skills: {c.matched_skills}\n"
+
+    prompt = f"""
+    You are an elite Enterprise HR Copilot. 
+    The recruiter has asked a question about the entire candidate database.
+
+    Here is the current talent pool data:
+    <database_context>
+    {db_context}
+    </database_context>
+
+    Recruiter's Question: "{question}"
+
+    STRICT RULES:
+    1. Answer the recruiter's question directly using ONLY the provided database context.
+    2. If they ask for the "best" or "top" candidates, rank them by Match Score or Experience as appropriate.
+    3. Format your response beautifully in Markdown using bullet points, bold text for candidate names, and clear spacing.
+    4. If no candidates match the criteria, politely state that no one in the current pipeline fits the requirements.
+    5. DO NOT invent or hallucinate any candidates.
+    """
+
+    try:
+        chat_completion = groq_client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="llama-3.1-8b-instant",
+            temperature=0.1 
+        )
+
+        final_answer = chat_completion.choices[0].message.content.strip()
+        return {"status": "success", "answer": final_answer}
+
+    except Exception as e:
+        print(f"Global Chat Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process global database query.")
+
 @app.post("/analyze-bulk")
 async def analyze_bulk_resumes(
     resume_zip: UploadFile = File(...), 
     job_description_text: str = Form(None),
     job_description_file: UploadFile = File(None),
     blind_mode: str = Form("false"),
+    job_id: str = Form(None), # <--- ADD THIS LINE
     db: Session = Depends(get_db)
 ):
     if not job_description_text and not job_description_file: raise HTTPException(status_code=400, detail="Missing JD.")
@@ -662,7 +731,7 @@ async def analyze_bulk_resumes(
                 missing_skills = [skill for skill in jd_skills if skill not in common_skills]
 
                 db_candidate = models.Candidate(
-                    job_id=1,
+                    job_id=int(job_id) if job_id else None,
                     filename=final_filename,
                     final_score=result["final_match_score_percentage"],
                     skill_overlap_score=result["feature_breakdown"]["skill_overlap_score"],

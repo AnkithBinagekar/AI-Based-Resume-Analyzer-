@@ -15,12 +15,12 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
-// --- RESPONSIVE NAVIGATION BAR ---
+// --- DYNAMIC RESPONSIVE NAVIGATION BAR ---
 function NavigationBar() {
   const location = useLocation();
   const currentPath = location.pathname;
   const token = localStorage.getItem('access_token');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Mobile state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   if (currentPath === '/' || currentPath === '/login' || currentPath === '/signup') return null;
 
@@ -29,25 +29,48 @@ function NavigationBar() {
     window.location.href = '/login';
   };
 
-  const linkStyle = (path) => 
-    `text-sm font-bold transition-all hover:text-blue-600 ${currentPath === path ? 'text-blue-600 border-b-2 border-blue-600 pb-1' : 'text-slate-500'}`;
+  // 🛡️ THE FIX: The Navbar is now dark across all main application routes!
+  const isDark = ['/hr', '/candidate', '/jobs'].includes(currentPath);
 
-  const mobileLinkStyle = (path) =>
-    `block w-full text-left px-4 py-3 text-sm font-bold rounded-xl transition-colors ${currentPath === path ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`;
+  // --- Dynamic Tailwind Classes ---
+  const headerBg = isDark ? 'bg-[#0B1121]/90 border-slate-800' : 'bg-white/80 border-slate-200';
+  const logoColor = isDark ? 'text-white' : 'text-slate-800';
+  const menuIconColor = isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-blue-600';
+  
+  const linkStyle = (path) => {
+    const isActive = currentPath === path;
+    if (isDark) {
+      return `text-sm font-bold transition-all hover:text-white ${isActive ? 'text-white border-b-2 border-blue-500 pb-1' : 'text-slate-400'}`;
+    }
+    return `text-sm font-bold transition-all hover:text-blue-600 ${isActive ? 'text-blue-600 border-b-2 border-blue-600 pb-1' : 'text-slate-500'}`;
+  };
+
+  const mobileMenuBg = isDark ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200';
+  const mobileLinkStyle = (path) => {
+    const isActive = currentPath === path;
+    if (isDark) {
+      return `block w-full text-left px-4 py-3 text-sm font-bold rounded-xl transition-colors ${isActive ? 'bg-blue-500/10 text-blue-400' : 'text-slate-400 hover:bg-slate-800'}`;
+    }
+    return `block w-full text-left px-4 py-3 text-sm font-bold rounded-xl transition-colors ${isActive ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`;
+  };
+
+  const logoutBtnStyle = isDark 
+    ? "ml-4 px-5 py-2 text-sm font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white border border-slate-700 rounded-xl transition-all active:scale-95"
+    : "ml-4 px-5 py-2 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-all shadow-md active:scale-95";
 
   return (
-    <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
+    <header className={`${headerBg} backdrop-blur-md border-b sticky top-0 z-50 transition-colors duration-300`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           
           {/* Logo */}
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">⚡</span>
-            <h1 className="text-xl font-black text-slate-800 tracking-tight hidden sm:block">AI Resume Analyzer</h1>
-            <h1 className="text-xl font-black text-slate-800 tracking-tight sm:hidden">AI Analyzer</h1>
-          </div>
+          <Link to="/" className="flex items-center gap-2 group cursor-pointer">
+            <span className="text-2xl drop-shadow-md group-hover:scale-110 transition-transform">⚡</span>
+            <h1 className={`text-xl font-black tracking-tight hidden sm:block transition-colors ${logoColor}`}>AI Resume Analyzer</h1>
+            <h1 className={`text-xl font-black tracking-tight sm:hidden transition-colors ${logoColor}`}>AI Analyzer</h1>
+          </Link>
           
-          {/* Desktop Navigation (Hidden on Mobile) */}
+          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
             <Link to="/candidate" className={linkStyle('/candidate')}>Candidate Portal</Link>
             
@@ -55,16 +78,16 @@ function NavigationBar() {
               <>
                 <Link to="/jobs" className={linkStyle('/jobs')}>Job Board</Link>
                 <Link to="/hr" className={linkStyle('/hr')}>HR Dashboard</Link>
-                <button onClick={handleLogout} className="ml-4 px-5 py-2 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-all shadow-md active:scale-95">
+                <button onClick={handleLogout} className={logoutBtnStyle}>
                   Logout
                 </button>
               </>
             )}
           </nav>
 
-          {/* Mobile Hamburger Button (Hidden on Desktop) */}
+          {/* Mobile Hamburger Button */}
           <button 
-            className="md:hidden p-2 text-slate-600 hover:text-blue-600 focus:outline-none"
+            className={`md:hidden p-2 focus:outline-none transition-colors ${menuIconColor}`}
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,7 +104,7 @@ function NavigationBar() {
 
       {/* Mobile Menu Dropdown */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-white border-b border-slate-200 px-4 pt-2 pb-6 space-y-2 shadow-xl animate-in slide-in-from-top-2">
+        <div className={`md:hidden border-b px-4 pt-2 pb-6 space-y-2 shadow-xl animate-in slide-in-from-top-2 ${mobileMenuBg}`}>
           <Link to="/candidate" onClick={() => setIsMobileMenuOpen(false)} className={mobileLinkStyle('/candidate')}>Candidate Portal</Link>
           
           {token && (
@@ -105,11 +128,9 @@ function NavigationBar() {
 function App() {
   return (
     <BrowserRouter>
-      {/* Removed the hardcoded bg-slate-50 here so the dark landing page works! */}
       <div className="min-h-[100dvh] font-sans text-slate-900 overflow-x-hidden selection:bg-blue-200">
         <NavigationBar />
         
-        {/* 🚨 REMOVED the <main> padding and max-width classes so pages can be edge-to-edge */}
         <main className="w-full">
           <Routes>
             <Route path="/" element={<LandingPage />} />

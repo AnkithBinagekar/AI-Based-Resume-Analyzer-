@@ -8,6 +8,7 @@ function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -15,7 +16,6 @@ function Login() {
     if (e) e.preventDefault();
     setLoading(true); setError('');
     
-    // Autofill demo credentials if the demo button was clicked
     const targetEmail = isDemo ? 'demo@company.com' : email;
     const targetPassword = isDemo ? 'demo123' : password;
 
@@ -32,89 +32,55 @@ function Login() {
       navigate('/hr');
       window.location.reload(); 
     } catch (err) {
-      setError("Invalid email or password.");
-    } finally {
+      setError(err.response?.data?.detail || "Invalid credentials.");
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center relative bg-slate-50 overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-[#0B1121] relative overflow-hidden p-6">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-[#0B1121] to-[#0B1121]"></div>
       
-      {/* SaaS Background Pattern */}
-      <div className="absolute inset-0 -z-10 h-full w-full bg-slate-50 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px] opacity-60"></div>
+      {/* 🚀 NEW: Top-Left Logo / Back to Landing Page */}
+      <Link to="/" className="absolute top-6 left-6 md:top-10 md:left-10 flex items-center gap-2 text-white hover:text-blue-400 transition-all z-50 group">
+        <span className="text-2xl drop-shadow-md group-hover:scale-110 transition-transform">⚡</span>
+        <span className="text-xl font-black tracking-tight hidden sm:block">AI Resume Analyzer</span>
+      </Link>
 
-      {/* Simple Logo Header */}
-      <div className="absolute top-8 left-8 flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black text-lg">AI</div>
-        <span className="font-extrabold text-slate-800 tracking-tight text-xl">Resume Analyzer</span>
-      </div>
-
-      <div className="w-full max-w-md bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-slate-200 p-10 animate-in fade-in zoom-in-95 duration-500">
-        
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Welcome back</h2>
-          <p className="text-sm text-slate-500 mt-2 font-medium">Log in to your ATS dashboard</p>
+      <div className="w-full max-w-md bg-[#0F172A] p-10 rounded-3xl border border-slate-800 shadow-2xl relative z-10">
+        <div className="text-center mb-10">
+          <div className="text-4xl mb-4 drop-shadow-lg">⚡</div>
+          <h2 className="text-2xl font-black text-white">Welcome Back</h2>
+          <p className="text-slate-400 text-sm font-medium mt-2">Sign in to your ATS workspace</p>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-700 text-sm font-bold rounded-xl flex items-center gap-2">
-            <span>🚨</span> {error}
-          </div>
-        )}
-        
-        <form onSubmit={(e) => handleLogin(e, false)} className="space-y-5">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Work Email</label>
-            <input 
-              type="email" 
-              required 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
-              className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all bg-slate-50 focus:bg-white text-sm font-medium"
-              placeholder="recruiter@company.com"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1.5 ml-1">Password</label>
-            <input 
-              type="password" 
-              required 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-              className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all bg-slate-50 focus:bg-white text-sm font-medium"
-              placeholder="••••••••"
-            />
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Email</label>
+            <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3.5 rounded-xl border border-slate-700 bg-[#0B1121] text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition-all text-sm font-medium shadow-inner" placeholder="name@company.com" />
           </div>
 
-          <button 
-            type="submit" 
-            disabled={loading} 
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed mt-2"
-          >
-            {loading ? 'Authenticating...' : 'Sign In'}
+          <div className="relative">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Password</label>
+            <input type={showPassword ? "text" : "password"} required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3.5 rounded-xl border border-slate-700 bg-[#0B1121] text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition-all text-sm font-medium shadow-inner pr-12" placeholder="••••••••" />
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-[36px] text-slate-500 hover:text-slate-300 transition-colors text-lg">
+              {showPassword ? "👁️" : "👁️‍🗨️"}
+            </button>
+          </div>
+
+          <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(37,99,235,0.3)] active:scale-[0.98] disabled:opacity-70 mt-2 tracking-wide">
+            {loading ? 'AUTHENTICATING...' : 'SIGN IN'}
           </button>
         </form>
 
-        <div className="mt-6 flex items-center justify-between gap-4">
-          <hr className="flex-1 border-slate-200" />
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Or</span>
-          <hr className="flex-1 border-slate-200" />
-        </div>
-
-        {/* The Viva Defense Lifesaver Button */}
-        <button 
-          type="button"
-          onClick={() => handleLogin(null, true)}
-          disabled={loading}
-          className="mt-6 w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold py-3.5 rounded-xl transition-all active:scale-[0.98]"
-        >
-          🚀 One-Click Demo Login
+        <button onClick={() => handleLogin(null, true)} className="mt-6 w-full bg-[#1E293B] hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold py-3.5 rounded-xl transition-all active:scale-[0.98] text-sm shadow-sm flex items-center justify-center gap-2">
+          <span>🚀</span> One-Click Demo Login
         </button>
 
+        {error && <p className="text-red-400 text-xs font-bold mt-4 text-center bg-red-500/10 py-3 rounded-lg border border-red-500/20">{error}</p>}
+        
         <p className="text-center mt-8 text-sm font-medium text-slate-500">
-          New to the platform? <Link to="/signup" className="text-blue-600 hover:text-blue-700 font-bold hover:underline">Create an account</Link>
+          Don't have an account? <Link to="/signup" className="text-blue-400 hover:text-blue-300 font-bold">Create one</Link>
         </p>
       </div>
     </div>
