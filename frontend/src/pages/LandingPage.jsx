@@ -14,232 +14,197 @@ function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#0B1121] text-slate-300 font-sans selection:bg-blue-500/30 relative overflow-x-hidden">
+    <div className="min-h-screen w-full bg-[#1A1F2E] text-[#F7F9FC] font-sans relative overflow-x-hidden">
       
-      {/* --- BACKGROUND GRID & GLOW EFFECTS --- */}
       <div className="absolute inset-0 z-0 pointer-events-none flex justify-center">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-20"></div>
-        <div className="absolute top-[-20%] w-[1000px] h-[600px] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none mix-blend-screen"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#242B3D_1px,transparent_1px),linear-gradient(to_bottom,#242B3D_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-40"></div>
+        <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[600px] bg-[#2F6FED]/20 blur-[150px] rounded-full pointer-events-none mix-blend-screen"></div>
+        <div className="absolute top-[40%] left-[-10%] w-[600px] h-[500px] bg-[#2FBF71]/10 blur-[150px] rounded-full pointer-events-none mix-blend-screen"></div>
       </div>
 
-      {/* --- NAVBAR --- */}
-      <nav className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex justify-between items-center animate-in fade-in slide-in-from-top-4 duration-500">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-lg sm:text-xl shadow-[0_0_15px_rgba(37,99,235,0.5)]">
-            AI
-          </div>
-          <span className="text-lg sm:text-xl font-black text-white tracking-tight">
-            Intelligence<span className="text-slate-400 font-medium hidden sm:inline">ATS</span>
+      <nav className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 flex justify-between items-center animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.scrollTo(0, 0)}>
+          <span className="text-3xl text-[#2F6FED] drop-shadow-[0_0_15px_rgba(47,111,237,0.6)] group-hover:scale-110 transition-transform">⚡</span>
+          <span className="text-xl font-black text-[#F7F9FC] tracking-tight drop-shadow-sm">
+            Intelligence<span className="text-[#94A3B8] font-medium hidden sm:inline">ATS</span>
           </span>
         </div>
-        <div className="hidden md:flex gap-8 text-sm font-semibold text-slate-400">
-          <a href="#workflow" className="hover:text-white transition-colors">Features</a>
-          <a href="#workflow" className="hover:text-white transition-colors">Workflow</a>
-          <a href="#capabilities" className="hover:text-white transition-colors">Security</a>
+        <div className="hidden md:flex gap-8 text-sm font-semibold text-[#94A3B8]">
+          <a href="#workflow" className="hover:text-[#F7F9FC] transition-colors">Features</a>
+          <a href="#workflow" className="hover:text-[#F7F9FC] transition-colors">Workflow</a>
+          <a href="#capabilities" className="hover:text-[#F7F9FC] transition-colors">Security</a>
         </div>
       </nav>
 
-      {/* --- HERO SECTION --- */}
       <main className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 pt-10 sm:pt-16 pb-16 sm:pb-24 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
         
-        {/* LEFT COLUMN: Copy & CTA */}
         <div className="animate-in fade-in slide-in-from-left-8 duration-700 text-center lg:text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black tracking-widest uppercase mb-6 sm:mb-8 shadow-sm">
-            Human-In-The-Loop AI Recruitment
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#2F6FED]/10 backdrop-blur-md border border-[#2F6FED]/30 text-[#2F6FED] text-[10px] font-black tracking-widest uppercase mb-6 sm:mb-8 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-[#2F6FED] animate-pulse"></span> Human-In-The-Loop AI Recruitment
           </div>
           
-          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-white tracking-tight leading-[1.1] mb-6">
+          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-[#F7F9FC] tracking-tight leading-[1.1] mb-6 drop-shadow-lg">
             Hire Using <br className="hidden sm:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">Context.</span> <br />
+            <span className="text-[#2F6FED] drop-shadow-[0_0_20px_rgba(47,111,237,0.4)]">Context.</span> <br />
             Not Just Keywords.
           </h1>
           
-          <p className="text-base sm:text-lg font-medium text-slate-400 mb-8 sm:mb-10 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+          <p className="text-base sm:text-lg font-medium text-[#94A3B8] mb-8 sm:mb-10 max-w-xl mx-auto lg:mx-0 leading-relaxed">
             An AI-assisted recruitment intelligence platform combining semantic NLP, fraud detection, explainable machine learning, and recruiter-centered workflow automation.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-12 sm:mb-16">
             <button 
               onClick={() => handleLogin('recruiter')}
-              className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-sm transition-all shadow-[0_0_20px_rgba(37,99,235,0.3)] active:scale-95 flex items-center justify-center gap-2 group"
+              className="w-full sm:w-auto px-8 py-4 bg-[#2F6FED]/90 backdrop-blur-md hover:bg-[#2563EB] border border-white/10 text-white rounded-xl font-bold text-sm transition-all shadow-[0_0_30px_rgba(47,111,237,0.3)] active:scale-95 flex items-center justify-center gap-2 group tracking-wide"
             >
-              Enter HR Portal <span className="group-hover:translate-x-1 transition-transform">→</span>
+              ENTER HR PORTAL <span className="group-hover:translate-x-1 transition-transform">→</span>
             </button>
             <button 
               onClick={() => handleLogin('candidate')}
-              className="w-full sm:w-auto px-8 py-4 bg-slate-900/50 hover:bg-slate-800 border border-slate-700 text-white rounded-xl font-bold text-sm transition-all active:scale-95 flex items-center justify-center"
+              className="w-full sm:w-auto px-8 py-4 bg-[#242B3D]/50 backdrop-blur-md hover:bg-[#374151]/80 border border-white/10 text-[#F7F9FC] rounded-xl font-bold text-sm transition-all active:scale-95 flex items-center justify-center tracking-wide"
             >
-              Candidate Portal
+              CANDIDATE PORTAL
             </button>
           </div>
 
-          {/* Micro-Features Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 border-t border-slate-800 pt-8 text-center sm:text-left">
-            <div>
-              <h4 className="text-white font-bold text-base sm:text-lg">Tri-Vector</h4>
-              <p className="text-xs text-slate-500 mt-1">Semantic + Lexical + Skill</p>
-            </div>
-            <div>
-              <h4 className="text-white font-bold text-base sm:text-lg">XAI</h4>
-              <p className="text-xs text-slate-500 mt-1">Explainable Decision Support</p>
-            </div>
-            <div>
-              <h4 className="text-white font-bold text-base sm:text-lg">HITL</h4>
-              <p className="text-xs text-slate-500 mt-1">Human-in-the-Loop Triage</p>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 border-t border-white/10 pt-8 text-center sm:text-left">
+            <div><h4 className="text-[#F7F9FC] font-bold text-base sm:text-lg drop-shadow-sm">Tri-Vector</h4><p className="text-xs text-[#94A3B8] mt-1">Semantic + Lexical + Skill</p></div>
+            <div><h4 className="text-[#F7F9FC] font-bold text-base sm:text-lg drop-shadow-sm">XAI</h4><p className="text-xs text-[#94A3B8] mt-1">Explainable Decision Support</p></div>
+            <div><h4 className="text-[#F7F9FC] font-bold text-base sm:text-lg drop-shadow-sm">HITL</h4><p className="text-xs text-[#94A3B8] mt-1">Human-in-the-Loop Triage</p></div>
           </div>
         </div>
 
-        {/* RIGHT COLUMN: CSS-Built Dashboard Mockup */}
+        {/* 🔮 HEAVY GLASSMORPHISM DASHBOARD MOCKUP */}
         <div className="relative w-full max-w-md mx-auto aspect-square md:aspect-auto md:h-[550px] animate-in fade-in slide-in-from-right-8 duration-700 hidden lg:block">
-          <div className="absolute inset-0 bg-blue-500/5 blur-[80px] rounded-full"></div>
-          
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] bg-[#0F172A] border border-slate-800 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl flex flex-col">
-            <div className="bg-[#1E293B]/50 px-4 py-3 flex items-center gap-2 border-b border-slate-800">
-              <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
-                <div className="w-3 h-3 rounded-full bg-amber-500/80"></div>
-                <div className="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] bg-[#242B3D]/30 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col">
+            <div className="bg-[#1A1F2E]/40 backdrop-blur-md px-5 py-4 flex items-center gap-3 border-b border-white/5">
+              <div className="flex gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#E85D75] shadow-[0_0_8px_rgba(232,93,117,0.8)]"></div>
+                <div className="w-3 h-3 rounded-full bg-[#F59E0B] shadow-[0_0_8px_rgba(245,158,11,0.8)]"></div>
+                <div className="w-3 h-3 rounded-full bg-[#2FBF71] shadow-[0_0_8px_rgba(47,191,113,0.8)]"></div>
               </div>
-              <div className="flex-1 text-center text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                Recruiter Intelligence Dashboard
+              <div className="flex-1 text-center text-[10px] text-[#94A3B8] font-bold uppercase tracking-widest drop-shadow-md">
+                Recruiter Intelligence
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-8 space-y-8">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="text-lg xl:text-xl font-black text-white">Senior Backend Engineer</h3>
-                  <p className="text-xs text-slate-400 mt-1">Contextual Match: 84%</p>
+                  <h3 className="text-xl font-black text-[#F7F9FC] drop-shadow-sm">Senior Backend Engineer</h3>
+                  <p className="text-xs font-bold text-[#94A3B8] mt-1 uppercase tracking-widest">Match Score: 84%</p>
                 </div>
-                <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full text-[10px] xl:text-xs font-bold shadow-[0_0_10px_rgba(16,185,129,0.1)]">
+                <span className="px-3 py-1.5 bg-[#2FBF71]/10 backdrop-blur-md border border-[#2FBF71]/30 text-[#2FBF71] rounded-lg text-[10px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(47,191,113,0.2)]">
                   Shortlisted
                 </span>
               </div>
 
-              <div className="space-y-4 pt-4 border-t border-slate-800/50">
+              <div className="space-y-5 pt-4 border-t border-white/5">
                 <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold text-slate-400">
-                    <span>Technical Skill Alignment</span>
-                    <span className="text-slate-300">88%</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="w-[88%] h-full bg-blue-600 rounded-full shadow-[0_0_10px_rgba(37,99,235,0.8)]"></div>
+                  <div className="flex justify-between text-xs font-bold text-[#94A3B8] uppercase tracking-wider"><span>Skill Alignment</span><span className="text-[#2FBF71] drop-shadow-sm">88%</span></div>
+                  <div className="w-full h-2.5 bg-[#1A1F2E]/50 rounded-full overflow-hidden shadow-inner border border-white/5">
+                    <div className="w-[88%] h-full bg-[#2FBF71] rounded-full shadow-[0_0_10px_rgba(47,191,113,0.8)]"></div>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold text-slate-400">
-                    <span>Contextual Experience</span>
-                    <span className="text-slate-300">81%</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="w-[81%] h-full bg-indigo-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.8)]"></div>
+                  <div className="flex justify-between text-xs font-bold text-[#94A3B8] uppercase tracking-wider"><span>Contextual Match</span><span className="text-[#2F6FED] drop-shadow-sm">81%</span></div>
+                  <div className="w-full h-2.5 bg-[#1A1F2E]/50 rounded-full overflow-hidden shadow-inner border border-white/5">
+                    <div className="w-[81%] h-full bg-[#2F6FED] rounded-full shadow-[0_0_10px_rgba(47,111,237,0.8)]"></div>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold text-slate-400">
-                    <span>Exact Keyword Match</span>
-                    <span className="text-slate-300">73%</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="w-[73%] h-full bg-cyan-500 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.8)]"></div>
+                  <div className="flex justify-between text-xs font-bold text-[#94A3B8] uppercase tracking-wider"><span>Keyword Match</span><span className="text-[#F59E0B] drop-shadow-sm">73%</span></div>
+                  <div className="w-full h-2.5 bg-[#1A1F2E]/50 rounded-full overflow-hidden shadow-inner border border-white/5">
+                    <div className="w-[73%] h-full bg-[#F59E0B] rounded-full shadow-[0_0_10px_rgba(245,158,11,0.8)]"></div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 p-4 rounded-xl bg-red-950/30 border border-red-900/50">
-                <h4 className="text-xs font-bold text-red-400 mb-1 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
-                  Potential ATS Manipulation Detected
+              <div className="mt-4 p-5 rounded-2xl bg-[#E85D75]/10 backdrop-blur-md border border-[#E85D75]/30 shadow-inner">
+                <h4 className="text-xs font-black text-[#E85D75] mb-2 flex items-center gap-3 uppercase tracking-widest drop-shadow-sm">
+                  <span className="w-2 h-2 bg-[#E85D75] rounded-full animate-pulse shadow-[0_0_10px_rgba(232,93,117,0.9)]"></span> Fraud Detected
                 </h4>
-                <p className="text-[10px] text-red-400/80 leading-relaxed">
-                  Abnormal keyword density detected with low contextual alignment. Resume flagged for manual review.
-                </p>
+                <p className="text-xs text-[#E85D75]/90 font-medium leading-relaxed">Abnormal keyword density detected with low contextual alignment. Flagged for review.</p>
               </div>
 
-              <div className="mt-2 p-4 rounded-xl bg-slate-800/30 border border-slate-700/50">
-                <h4 className="text-xs font-bold text-white mb-1">AI Decision Summary</h4>
-                <p className="text-[10px] text-slate-400 leading-relaxed">
-                  Candidate demonstrates strong backend engineering alignment with relevant API development experience but lacks production Kubernetes exposure.
-                </p>
+              <div className="mt-2 p-5 rounded-2xl bg-[#1A1F2E]/60 backdrop-blur-md border border-white/10 shadow-inner">
+                <h4 className="text-xs font-black text-[#F7F9FC] mb-2 uppercase tracking-widest drop-shadow-sm">🧠 AI Summary</h4>
+                <p className="text-xs text-[#94A3B8] font-medium leading-relaxed">Candidate demonstrates strong backend engineering alignment with relevant API development experience but lacks production Kubernetes exposure.</p>
               </div>
             </div>
           </div>
         </div>
       </main>
 
-      {/* --- SECTION 1: WORKFLOW --- */}
-      <section id="workflow" className="relative z-10 w-full py-16 sm:py-24 border-t border-slate-800 bg-[#070B14]">
+      <section id="workflow" className="relative z-10 w-full py-16 sm:py-24 border-t border-white/5 bg-[#1A1F2E]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-4">Recruitment Intelligence Workflow</h2>
-            <p className="text-sm sm:text-base text-slate-400 font-medium max-w-2xl mx-auto">
-              Designed as a Human-in-the-Loop recruitment system where AI assists analysis while recruiters retain final decision authority.
-            </p>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#F7F9FC] mb-4 drop-shadow-sm">Recruitment Intelligence Workflow</h2>
+            <p className="text-sm sm:text-base text-[#94A3B8] font-medium max-w-2xl mx-auto">Designed as a Human-in-the-Loop recruitment system where AI assists analysis while recruiters retain final decision authority.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            <div className="bg-[#0F172A] p-6 sm:p-8 rounded-2xl border border-slate-800 hover:border-slate-700 transition-colors">
-              <div className="w-10 h-10 mb-4 sm:mb-6 bg-slate-800 flex items-center justify-center rounded-lg text-xl">📄</div>
-              <h3 className="text-sm font-black text-white mb-2">Document Ingestion</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">Upload resumes, bulk ZIP files, or image-based job descriptions.</p>
+            <div className="bg-[#242B3D]/40 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/50 hover:bg-[#242B3D]/60 transition-all shadow-lg group">
+              <div className="w-12 h-12 mb-6 bg-[#1A1F2E]/80 backdrop-blur-md border border-white/10 flex items-center justify-center rounded-xl text-2xl group-hover:scale-110 transition-transform shadow-inner">📄</div>
+              <h3 className="text-sm font-black text-[#F7F9FC] mb-2 uppercase tracking-wider drop-shadow-sm">Document Ingestion</h3>
+              <p className="text-xs text-[#94A3B8] font-medium leading-relaxed">Upload resumes, bulk ZIP files, or image-based job descriptions.</p>
             </div>
-            <div className="bg-[#0F172A] p-6 sm:p-8 rounded-2xl border border-slate-800 hover:border-slate-700 transition-colors">
-              <div className="w-10 h-10 mb-4 sm:mb-6 bg-slate-800 flex items-center justify-center rounded-lg text-xl">🧠</div>
-              <h3 className="text-sm font-black text-white mb-2">Hybrid NLP Analysis</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">Semantic embeddings, lexical analysis, and skill extraction.</p>
+            <div className="bg-[#242B3D]/40 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/50 hover:bg-[#242B3D]/60 transition-all shadow-lg group">
+              <div className="w-12 h-12 mb-6 bg-[#1A1F2E]/80 backdrop-blur-md border border-white/10 flex items-center justify-center rounded-xl text-2xl group-hover:scale-110 transition-transform shadow-inner">🧠</div>
+              <h3 className="text-sm font-black text-[#F7F9FC] mb-2 uppercase tracking-wider drop-shadow-sm">Hybrid NLP Analysis</h3>
+              <p className="text-xs text-[#94A3B8] font-medium leading-relaxed">Semantic embeddings, lexical analysis, and skill extraction.</p>
             </div>
-            <div className="bg-[#0F172A] p-6 sm:p-8 rounded-2xl border border-slate-800 hover:border-slate-700 transition-colors">
-              <div className="w-10 h-10 mb-4 sm:mb-6 bg-slate-800 flex items-center justify-center rounded-lg text-xl">🛡️</div>
-              <h3 className="text-sm font-black text-white mb-2">Fraud & Bias Detection</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">Detect keyword stuffing and enable blind hiring workflows.</p>
+            <div className="bg-[#242B3D]/40 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/50 hover:bg-[#242B3D]/60 transition-all shadow-lg group">
+              <div className="w-12 h-12 mb-6 bg-[#1A1F2E]/80 backdrop-blur-md border border-white/10 flex items-center justify-center rounded-xl text-2xl group-hover:scale-110 transition-transform shadow-inner">🛡️</div>
+              <h3 className="text-sm font-black text-[#F7F9FC] mb-2 uppercase tracking-wider drop-shadow-sm">Fraud Detection</h3>
+              <p className="text-xs text-[#94A3B8] font-medium leading-relaxed">Detect keyword stuffing and enable blind hiring workflows.</p>
             </div>
-            <div className="bg-[#0F172A] p-6 sm:p-8 rounded-2xl border border-slate-800 hover:border-slate-700 transition-colors">
-              <div className="w-10 h-10 mb-4 sm:mb-6 bg-slate-800 flex items-center justify-center rounded-lg text-xl">📊</div>
-              <h3 className="text-sm font-black text-white mb-2">Recruiter Decision Support</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">AI-assisted ranking with explainable recruiter insights.</p>
+            <div className="bg-[#242B3D]/40 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/50 hover:bg-[#242B3D]/60 transition-all shadow-lg group">
+              <div className="w-12 h-12 mb-6 bg-[#1A1F2E]/80 backdrop-blur-md border border-white/10 flex items-center justify-center rounded-xl text-2xl group-hover:scale-110 transition-transform shadow-inner">📊</div>
+              <h3 className="text-sm font-black text-[#F7F9FC] mb-2 uppercase tracking-wider drop-shadow-sm">Decision Support</h3>
+              <p className="text-xs text-[#94A3B8] font-medium leading-relaxed">AI-assisted ranking with explainable recruiter insights.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* --- SECTION 2: CAPABILITIES --- */}
-      <section id="capabilities" className="relative z-10 w-full py-16 sm:py-24 bg-[#0B1121]">
+      <section id="capabilities" className="relative z-10 w-full py-16 sm:py-24 bg-[#1A1F2E]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-4">Core Platform Capabilities</h2>
-            <p className="text-sm sm:text-base text-slate-400 font-medium max-w-2xl mx-auto">
-              Built using local NLP pipelines, explainable machine learning, and controlled generative AI assistance.
-            </p>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#F7F9FC] mb-4 drop-shadow-sm">Core Capabilities</h2>
+            <p className="text-sm sm:text-base text-[#94A3B8] font-medium max-w-2xl mx-auto">Built using local NLP pipelines, explainable ML, and generative AI.</p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-            <div className="bg-gradient-to-b from-[#0F172A] to-[#070B14] p-6 sm:p-8 rounded-2xl border border-slate-800">
-              <h3 className="text-base sm:text-lg font-black text-white mb-3">Hybrid ML Engine</h3>
-              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">Combines semantic analysis, skill extraction, and lexical scoring through a Random Forest ensemble.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-gradient-to-b from-[#242B3D]/60 to-[#1A1F2E]/40 backdrop-blur-xl p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/30 hover:shadow-[0_0_30px_rgba(47,111,237,0.15)] transition-all shadow-lg">
+              <div className="w-10 h-10 rounded-full bg-[#2F6FED]/20 backdrop-blur-md border border-[#2F6FED]/30 flex items-center justify-center text-[#2F6FED] mb-6 drop-shadow-md">⚙️</div>
+              <h3 className="text-lg font-black text-[#F7F9FC] mb-3 drop-shadow-sm">Hybrid ML Engine</h3>
+              <p className="text-sm text-[#94A3B8] font-medium leading-relaxed">Combines semantic analysis, skill extraction, and lexical scoring through a Random Forest ensemble.</p>
             </div>
-            <div className="bg-gradient-to-b from-[#0F172A] to-[#070B14] p-6 sm:p-8 rounded-2xl border border-slate-800">
-              <h3 className="text-base sm:text-lg font-black text-white mb-3">Recruiter Copilot</h3>
-              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">Retrieval-Augmented candidate querying using vector search and grounded AI responses.</p>
+            <div className="bg-gradient-to-b from-[#242B3D]/60 to-[#1A1F2E]/40 backdrop-blur-xl p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/30 hover:shadow-[0_0_30px_rgba(47,111,237,0.15)] transition-all shadow-lg">
+              <div className="w-10 h-10 rounded-full bg-[#2F6FED]/20 backdrop-blur-md border border-[#2F6FED]/30 flex items-center justify-center text-[#2F6FED] mb-6 drop-shadow-md">🤖</div>
+              <h3 className="text-lg font-black text-[#F7F9FC] mb-3 drop-shadow-sm">Recruiter Copilot</h3>
+              <p className="text-sm text-[#94A3B8] font-medium leading-relaxed">Retrieval-Augmented candidate querying using vector search and grounded AI responses.</p>
             </div>
-            <div className="bg-gradient-to-b from-[#0F172A] to-[#070B14] p-6 sm:p-8 rounded-2xl border border-slate-800">
-              <h3 className="text-base sm:text-lg font-black text-white mb-3">Blind Hiring Mode</h3>
-              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">Automatically removes personally identifiable information during recruiter screening.</p>
+            <div className="bg-gradient-to-b from-[#242B3D]/60 to-[#1A1F2E]/40 backdrop-blur-xl p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/30 hover:shadow-[0_0_30px_rgba(47,111,237,0.15)] transition-all shadow-lg">
+              <div className="w-10 h-10 rounded-full bg-[#2F6FED]/20 backdrop-blur-md border border-[#2F6FED]/30 flex items-center justify-center text-[#2F6FED] mb-6 drop-shadow-md">👁️‍🗨️</div>
+              <h3 className="text-lg font-black text-[#F7F9FC] mb-3 drop-shadow-sm">Blind Hiring Mode</h3>
+              <p className="text-sm text-[#94A3B8] font-medium leading-relaxed">Automatically removes personally identifiable information during recruiter screening.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* --- FOOTER --- */}
-      <footer className="relative z-10 w-full border-t border-slate-800 bg-[#070B14] py-8">
+      <footer className="relative z-10 w-full border-t border-white/5 bg-[#1A1F2E]/80 backdrop-blur-md py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
-          <div>
-            <h4 className="text-white font-black">IntelligenceATS</h4>
-            <p className="text-[9px] sm:text-[10px] text-slate-500 uppercase tracking-widest mt-1">AI-Assisted Recruitment Intelligence Platform</p>
+          <div className="flex items-center gap-2">
+             <span className="text-xl text-[#2F6FED] drop-shadow-sm">⚡</span>
+             <div>
+               <h4 className="text-[#F7F9FC] font-black tracking-tight drop-shadow-sm">IntelligenceATS</h4>
+               <p className="text-[10px] text-[#94A3B8] uppercase tracking-widest mt-0.5">AI-Assisted Recruitment Intelligence Platform</p>
+             </div>
           </div>
-          <div className="text-[9px] sm:text-[10px] text-slate-600 uppercase tracking-widest font-bold">
-            &copy; Ankith Binagekar
-          </div>
+          <div className="text-[10px] text-[#94A3B8] uppercase tracking-widest font-bold">&copy; Ankith Binagekar</div>
         </div>
       </footer>
     </div>

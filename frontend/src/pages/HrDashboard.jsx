@@ -6,6 +6,38 @@ import ReactMarkdown from 'react-markdown';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 
+// --- CUSTOM DROPDOWN COMPONENT ---
+function CustomDropdown({ value, onChange, options, placeholder }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options?.find(opt => String(opt.value) === String(value));
+  const displayLabel = selectedOption ? selectedOption.label : placeholder;
+
+  return (
+    <div className="relative w-full">
+      <div onClick={() => setIsOpen(!isOpen)} className="w-full px-4 py-3.5 rounded-xl border border-white/5 bg-[#1A1F2E]/60 backdrop-blur-md text-[#F7F9FC] hover:bg-[#1A1F2E]/80 transition-all text-sm font-medium shadow-inner flex justify-between items-center cursor-pointer">
+        <span className="truncate">{displayLabel}</span>
+        <span className="text-xs text-[#94A3B8] transition-transform duration-200" style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+      </div>
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
+          <div className="absolute z-50 w-full mt-2 bg-[#242B3D]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-200">
+            {(!options || options.length === 0) ? (
+              <div className="px-4 py-3 text-sm text-[#94A3B8]">No options available.</div>
+            ) : (
+              options.map(opt => (
+                <div key={opt.value} onClick={() => { onChange(opt.value); setIsOpen(false); }} className={`px-4 py-3 text-sm cursor-pointer transition-colors ${String(value) === String(opt.value) ? 'bg-[#2F6FED]/20 text-[#2F6FED] font-bold' : 'text-[#F7F9FC] hover:bg-white/10'}`}>
+                  {opt.label}
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function HrDashboard() {
   const navigate = useNavigate();
   const [candidates, setCandidates] = useState([]);
@@ -13,13 +45,11 @@ function HrDashboard() {
   const [viewMode, setViewMode] = useState('board'); 
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   
-  // Chatbot State
   const [globalChatOpen, setGlobalChatOpen] = useState(false);
   const [globalChatHistory, setGlobalChatHistory] = useState([]);
   const [globalChatInput, setGlobalChatInput] = useState('');
   const [globalChatLoading, setGlobalChatLoading] = useState(false);
   
-  // Job Selection State
   const [dbJobs, setDbJobs] = useState([]);
   const [chatJobId, setChatJobId] = useState(''); 
   
@@ -38,28 +68,17 @@ function HrDashboard() {
         let aiStatus = 'archived';
         if (c.final_score >= 75) aiStatus = 'shortlisted';
         else if (c.final_score >= 50) aiStatus = 'review';
-        return {
-          ...c,
-          pipeline_status: c.pipeline_status || aiStatus,
-          is_human_overridden: false,
-          recruiter_notes: c.recruiter_notes || ''
-        };
+        return { ...c, pipeline_status: c.pipeline_status || aiStatus, is_human_overridden: false, recruiter_notes: c.recruiter_notes || '' };
       });
       setCandidates(initializedCandidates);
-    } catch (err) {
-      console.error("Failed to fetch candidates", err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error("Failed to fetch candidates", err); } finally { setLoading(false); }
   };
 
   const fetchJobs = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/jobs`);
-      setDbJobs(response.data.data);
-    } catch (err) {
-      console.error("Failed to fetch jobs", err);
-    }
+      setDbJobs(response.data.data || []);
+    } catch (err) { console.error("Failed to fetch jobs", err); }
   };
 
   const generateAnalytics = () => {
@@ -87,25 +106,15 @@ function HrDashboard() {
   const handleDrop = (e, newStatus) => {
     e.preventDefault();
     const candidateId = Number(e.dataTransfer.getData('candidateId'));
-    setCandidates(prev => prev.map(c => {
-      if (c.id === candidateId && c.pipeline_status !== newStatus) {
-        return { ...c, pipeline_status: newStatus, is_human_overridden: true };
-      }
-      return c;
-    }));
+    setCandidates(prev => prev.map(c => c.id === candidateId && c.pipeline_status !== newStatus ? { ...c, pipeline_status: newStatus, is_human_overridden: true } : c));
   };
 
-  const openDeepDive = (candidate) => {
-    setSelectedCandidate(candidate);
-    setRecruiterNote(candidate.recruiter_notes || '');
-  };
+  const openDeepDive = (candidate) => { setSelectedCandidate(candidate); setRecruiterNote(candidate.recruiter_notes || ''); };
 
   const handleSaveNote = () => {
     setSavingNote(true);
     setTimeout(() => {
-      setCandidates(prev => prev.map(c => 
-        c.id === selectedCandidate.id ? { ...c, recruiter_notes: recruiterNote } : c
-      ));
+      setCandidates(prev => prev.map(c => c.id === selectedCandidate.id ? { ...c, recruiter_notes: recruiterNote } : c));
       setSavingNote(false);
     }, 600);
   };
@@ -139,9 +148,9 @@ function HrDashboard() {
   const archived = candidates.filter(c => c.pipeline_status === 'archived');
 
   const getScoreBadge = (score) => {
-    if (score >= 75) return <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-black shadow-[0_0_10px_rgba(16,185,129,0.1)]">{score.toFixed(1)}%</span>;
-    if (score >= 50) return <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full text-xs font-black shadow-[0_0_10px_rgba(245,158,11,0.1)]">{score.toFixed(1)}%</span>;
-    return <span className="px-3 py-1 bg-slate-800 text-slate-400 border border-slate-700 rounded-full text-xs font-black">{score.toFixed(1)}%</span>;
+    if (score >= 75) return <span className="px-3 py-1 bg-[#2FBF71]/20 backdrop-blur-md text-[#2FBF71] border border-[#2FBF71]/30 rounded-full text-xs font-black shadow-[0_0_15px_rgba(47,191,113,0.2)]">{score.toFixed(1)}%</span>;
+    if (score >= 50) return <span className="px-3 py-1 bg-[#F59E0B]/20 backdrop-blur-md text-[#F59E0B] border border-[#F59E0B]/30 rounded-full text-xs font-black shadow-[0_0_15px_rgba(245,158,11,0.2)]">{score.toFixed(1)}%</span>;
+    return <span className="px-3 py-1 bg-[#1A1F2E]/80 backdrop-blur-md text-[#94A3B8] border border-white/10 rounded-full text-xs font-black">{score.toFixed(1)}%</span>;
   };
 
   const generateXAIReasons = (candidate) => {
@@ -168,19 +177,19 @@ function HrDashboard() {
       draggable 
       onDragStart={(e) => handleDragStart(e, candidate.id)}
       onClick={() => openDeepDive(candidate)} 
-      className={`bg-[#1E293B] p-5 rounded-2xl shadow-lg border hover:-translate-y-1 transition-all duration-300 cursor-grab active:cursor-grabbing relative overflow-hidden group ${candidate.is_human_overridden ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-700 hover:border-blue-500/50 hover:shadow-[0_0_15px_rgba(37,99,235,0.15)]'}`}
+      className={`bg-[#242B3D]/60 backdrop-blur-xl p-5 rounded-2xl shadow-lg border hover:-translate-y-1 transition-all duration-300 cursor-grab active:cursor-grabbing relative overflow-hidden group ${candidate.is_human_overridden ? 'border-[#2F6FED] ring-2 ring-[#2F6FED]/30' : 'border-white/10 hover:border-[#2F6FED]/60 hover:shadow-[0_0_20px_rgba(47,111,237,0.25)]'}`}
     >
-      <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-bl-full -mr-4 -mt-4 z-0 group-hover:scale-125 transition-transform duration-500"></div>
+      <div className="absolute top-0 right-0 w-20 h-20 bg-[#2F6FED]/10 rounded-bl-full -mr-4 -mt-4 z-0 group-hover:scale-125 transition-transform duration-500"></div>
       <div className="relative z-10 flex justify-between items-start mb-4">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner border ${candidate.filename.includes('🔒') ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner border backdrop-blur-md ${candidate.filename.includes('🔒') ? 'bg-[#2F6FED]/20 text-[#2F6FED] border-[#2F6FED]/30' : 'bg-[#1A1F2E]/80 text-[#94A3B8] border-white/5'}`}>
             {candidate.filename.includes('🔒') ? '🛡️' : '📄'}
           </div>
           <div className="overflow-hidden">
-            <h4 className="text-sm font-bold text-white truncate" title={candidate.filename}>{candidate.filename.replace('🔒 Anonymous_Candidate_', 'Candidate_')}</h4>
+            <h4 className="text-sm font-bold text-[#F7F9FC] truncate drop-shadow-sm" title={candidate.filename}>{candidate.filename.replace('🔒 Anonymous_Candidate_', 'Candidate_')}</h4>
             <div className="flex items-center gap-2 mt-0.5">
-              <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">Job #{candidate.job_id}</p>
-              {candidate.is_human_overridden && <span className="text-[9px] uppercase font-black tracking-wider text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded-sm">✋ Override</span>}
+              <p className="text-[10px] uppercase tracking-widest font-bold text-[#94A3B8]">Job #{candidate.job_id}</p>
+              {candidate.is_human_overridden && <span className="text-[9px] uppercase font-black tracking-wider text-[#2F6FED] bg-[#2F6FED]/20 border border-[#2F6FED]/30 px-1.5 py-0.5 rounded-sm">✋ Override</span>}
             </div>
           </div>
         </div>
@@ -188,118 +197,115 @@ function HrDashboard() {
       </div>
 
       <div className="relative z-10 grid grid-cols-2 gap-2 mb-2">
-        <div className="bg-[#0F172A] p-2 rounded-lg border border-slate-800">
-          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Experience</p>
-          <p className="text-xs font-black text-slate-300">{candidate.total_yoe || 0} Yrs</p>
+        <div className="bg-[#1A1F2E]/60 backdrop-blur-md p-2 rounded-lg border border-white/5 shadow-inner">
+          <p className="text-[9px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Experience</p>
+          <p className="text-xs font-black text-[#F7F9FC]">{candidate.total_yoe || 0} Yrs</p>
         </div>
-        <div className="bg-[#0F172A] p-2 rounded-lg border border-slate-800">
-          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Education</p>
-          <p className="text-xs font-black text-slate-300 truncate" title={candidate.highest_education}>{candidate.highest_education || 'Unknown'}</p>
+        <div className="bg-[#1A1F2E]/60 backdrop-blur-md p-2 rounded-lg border border-white/5 shadow-inner">
+          <p className="text-[9px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Education</p>
+          <p className="text-xs font-black text-[#F7F9FC] truncate" title={candidate.highest_education}>{candidate.highest_education || 'Unknown'}</p>
         </div>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#0B1121] text-slate-300 pt-6 pb-20 relative overflow-x-hidden font-sans selection:bg-blue-500/30">
+    <div className="min-h-screen bg-[#1A1F2E] text-[#F7F9FC] pt-6 pb-20 relative overflow-x-hidden font-sans selection:bg-[#2F6FED]/30">
       
       {/* Background Grid */}
       <div className="absolute inset-0 z-0 pointer-events-none flex justify-center">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-20"></div>
-        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none mix-blend-screen"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#242B3D_1px,transparent_1px),linear-gradient(to_bottom,#242B3D_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-40"></div>
+        <div className="absolute top-[10%] left-[20%] w-[600px] h-[600px] bg-[#2F6FED]/15 blur-[150px] rounded-full pointer-events-none mix-blend-screen"></div>
+        <div className="absolute bottom-[20%] right-[10%] w-[500px] h-[500px] bg-[#2FBF71]/10 blur-[150px] rounded-full pointer-events-none mix-blend-screen"></div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         
         <div className="mb-10 flex flex-col md:flex-row justify-between items-end gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black tracking-widest uppercase mb-4 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> Human-in-the-Loop Pipeline
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#2F6FED]/10 backdrop-blur-md border border-[#2F6FED]/30 text-[#2F6FED] text-[10px] font-black tracking-widest uppercase mb-4 shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-[#2F6FED] animate-pulse"></span> Human-in-the-Loop Pipeline
             </div>
-            <h2 className="text-4xl font-black text-white tracking-tight">Recruiter Intelligence</h2>
-            <p className="text-slate-400 font-medium mt-2 max-w-xl">AI automates the triage. Humans retain the executive override.</p>
+            <h2 className="text-4xl font-black text-[#F7F9FC] tracking-tight drop-shadow-sm">Recruiter Intelligence</h2>
+            <p className="text-[#94A3B8] font-medium mt-2 max-w-xl">AI automates the triage. Humans retain the executive override.</p>
           </div>
           
-          <div className="flex items-center gap-2 bg-[#0F172A] p-1.5 rounded-xl border border-slate-800 shadow-lg">
-            <button onClick={() => setViewMode('board')} className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'board' ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}>Kanban</button>
-            <button onClick={() => setViewMode('list')} className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'list' ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}>List</button>
+          <div className="flex items-center gap-2 bg-[#242B3D]/60 backdrop-blur-xl p-1.5 rounded-xl border border-white/10 shadow-lg">
+            <button onClick={() => setViewMode('board')} className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'board' ? 'bg-[#2F6FED]/90 border border-white/10 text-white shadow-[0_0_20px_rgba(47,111,237,0.4)] backdrop-blur-md' : 'text-[#94A3B8] hover:text-[#F7F9FC] hover:bg-[#1A1F2E]/50 border border-transparent'}`}>Kanban</button>
+            <button onClick={() => setViewMode('list')} className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'list' ? 'bg-[#2F6FED]/90 border border-white/10 text-white shadow-[0_0_20px_rgba(47,111,237,0.4)] backdrop-blur-md' : 'text-[#94A3B8] hover:text-[#F7F9FC] hover:bg-[#1A1F2E]/50 border border-transparent'}`}>List</button>
           </div>
         </div>
 
         {!loading && candidates.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
-            <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] p-6 rounded-2xl border border-slate-800 shadow-xl flex items-center gap-5 relative overflow-hidden">
-              <div className="w-14 h-14 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(37,99,235,0.15)] relative z-10">👥</div>
-              <div className="relative z-10"><p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Total Scans</p><p className="text-3xl font-black text-white">{candidates.length}</p></div>
+            <div className="bg-[#242B3D]/40 backdrop-blur-2xl p-6 rounded-2xl border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.2)] flex items-center gap-5 relative overflow-hidden">
+              <div className="w-14 h-14 rounded-xl bg-[#2F6FED]/20 backdrop-blur-md text-[#2F6FED] border border-[#2F6FED]/30 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(47,111,237,0.2)] relative z-10">👥</div>
+              <div className="relative z-10"><p className="text-[10px] font-black uppercase text-[#94A3B8] tracking-widest mb-1">Total Scans</p><p className="text-3xl font-black text-[#F7F9FC] drop-shadow-sm">{candidates.length}</p></div>
             </div>
             
-            <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] p-6 rounded-2xl border border-slate-800 shadow-xl flex items-center gap-5 relative overflow-hidden">
-              <div className="w-14 h-14 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(16,185,129,0.15)] relative z-10">📊</div>
-              <div className="relative z-10"><p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Avg Match</p><p className="text-3xl font-black text-white">{avgMatch}%</p></div>
+            <div className="bg-[#242B3D]/40 backdrop-blur-2xl p-6 rounded-2xl border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.2)] flex items-center gap-5 relative overflow-hidden">
+              <div className="w-14 h-14 rounded-xl bg-[#2FBF71]/20 backdrop-blur-md text-[#2FBF71] border border-[#2FBF71]/30 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(47,191,113,0.2)] relative z-10">📊</div>
+              <div className="relative z-10"><p className="text-[10px] font-black uppercase text-[#94A3B8] tracking-widest mb-1">Avg Match</p><p className="text-3xl font-black text-[#F7F9FC] drop-shadow-sm">{avgMatch}%</p></div>
             </div>
             
-            <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] p-6 rounded-2xl border border-slate-800 shadow-xl flex items-center gap-5 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 rounded-bl-full -mr-4 -mt-4 z-0"></div>
-              <div className="w-14 h-14 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(239,68,68,0.15)] relative z-10 animate-pulse">🚨</div>
-              <div className="relative z-10"><p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Fraud Alerts</p><p className="text-3xl font-black text-white">{fraudCount}</p></div>
+            <div className="bg-[#242B3D]/40 backdrop-blur-2xl p-6 rounded-2xl border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.2)] flex items-center gap-5 relative overflow-hidden">
+              <div className="w-14 h-14 rounded-xl bg-[#E85D75]/20 backdrop-blur-md text-[#E85D75] border border-[#E85D75]/30 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(232,93,117,0.2)] relative z-10 animate-pulse">🚨</div>
+              <div className="relative z-10"><p className="text-[10px] font-black uppercase text-[#94A3B8] tracking-widest mb-1">Fraud Alerts</p><p className="text-3xl font-black text-[#F7F9FC] drop-shadow-sm">{fraudCount}</p></div>
             </div>
             
-            <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] p-6 rounded-2xl border border-slate-800 shadow-xl flex items-center gap-5 relative overflow-hidden">
-              <div className="w-14 h-14 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(168,85,247,0.15)] relative z-10">🎯</div>
-              <div className="overflow-hidden relative z-10"><p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Top Missing Skill</p><p className="text-lg font-black text-white truncate" title={topSkill}>{topSkill}</p></div>
+            <div className="bg-[#242B3D]/40 backdrop-blur-2xl p-6 rounded-2xl border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.2)] flex items-center gap-5 relative overflow-hidden">
+              <div className="w-14 h-14 rounded-xl bg-[#F59E0B]/20 backdrop-blur-md text-[#F59E0B] border border-[#F59E0B]/30 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(245,158,11,0.2)] relative z-10">🎯</div>
+              <div className="overflow-hidden relative z-10"><p className="text-[10px] font-black uppercase text-[#94A3B8] tracking-widest mb-1">Top Missing Skill</p><p className="text-lg font-black text-[#F7F9FC] truncate drop-shadow-sm" title={topSkill}>{topSkill}</p></div>
             </div>
           </div>
         )}
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32">
-             <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-6"></div>
-             <p className="text-slate-400 font-bold tracking-widest uppercase text-xs animate-pulse">Syncing Enterprise Database...</p>
+             <div className="w-12 h-12 border-4 border-[#2F6FED]/20 border-t-[#2F6FED] rounded-full animate-spin mb-6"></div>
+             <p className="text-[#94A3B8] font-bold tracking-widest uppercase text-xs animate-pulse">Syncing Enterprise Database...</p>
           </div>
         ) : candidates.length === 0 ? (
-          <div className="bg-[#0F172A]/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-800 p-24 text-center animate-in fade-in zoom-in-95">
-            <div className="text-6xl mb-8">📭</div>
-            <h3 className="text-3xl font-black text-white mb-3">No Candidates Found</h3>
-            <p className="text-slate-400 mb-10 font-medium text-lg">Your ATS database is currently empty.</p>
-            <button onClick={() => navigate('/candidate')} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-10 rounded-xl shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all active:scale-95">Go to Scanner Portal</button>
+          <div className="bg-[#242B3D]/40 backdrop-blur-3xl rounded-3xl shadow-2xl border border-white/10 p-24 text-center animate-in fade-in zoom-in-95">
+            <div className="text-6xl mb-8 drop-shadow-md">📭</div>
+            <h3 className="text-3xl font-black text-[#F7F9FC] mb-3">No Candidates Found</h3>
+            <p className="text-[#94A3B8] mb-10 font-medium text-lg">Your ATS database is currently empty.</p>
+            <button onClick={() => navigate('/candidate')} className="bg-[#2F6FED]/90 backdrop-blur-md border border-white/10 hover:bg-[#2563EB] text-white font-bold py-4 px-10 rounded-xl shadow-[0_0_30px_rgba(47,111,237,0.4)] transition-all active:scale-95">Go to Scanner Portal</button>
           </div>
         ) : (
           <div className="animate-in fade-in duration-700">
             {viewMode === 'board' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                 
-                {/* Shortlisted Column */}
-                <div onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'shortlisted')} className="bg-[#0F172A]/60 backdrop-blur-xl rounded-3xl p-5 border border-slate-800 shadow-2xl min-h-[600px]">
-                  <div className="flex items-center justify-between mb-6 px-2 border-b border-slate-800 pb-4">
-                    <h3 className="font-black text-white flex items-center gap-3">
-                      <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]"></span> 
-                      Shortlisted
+                {/* Shortlisted */}
+                <div onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'shortlisted')} className="bg-[#242B3D]/30 backdrop-blur-2xl rounded-3xl p-5 border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.3)] min-h-[600px]">
+                  <div className="flex items-center justify-between mb-6 px-2 border-b border-white/5 pb-4">
+                    <h3 className="font-black text-[#F7F9FC] flex items-center gap-3 drop-shadow-sm">
+                      <span className="w-3 h-3 rounded-full bg-[#2FBF71] shadow-[0_0_12px_rgba(47,191,113,0.9)]"></span> Shortlisted
                     </h3>
-                    <span className="bg-slate-800 text-slate-300 text-xs font-black px-3 py-1 rounded-full border border-slate-700">{topMatches.length}</span>
+                    <span className="bg-[#1A1F2E]/80 backdrop-blur-md text-[#94A3B8] text-xs font-black px-3 py-1 rounded-full border border-white/5">{topMatches.length}</span>
                   </div>
                   <div className="space-y-4">{topMatches.map(c => <CandidateCard key={c.id} candidate={c} />)}</div>
                 </div>
 
-                {/* Review Needed Column */}
-                <div onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'review')} className="bg-[#0F172A]/60 backdrop-blur-xl rounded-3xl p-5 border border-slate-800 shadow-2xl min-h-[600px]">
-                  <div className="flex items-center justify-between mb-6 px-2 border-b border-slate-800 pb-4">
-                    <h3 className="font-black text-white flex items-center gap-3">
-                      <span className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)]"></span> 
-                      Review Needed
+                {/* Review Needed */}
+                <div onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'review')} className="bg-[#242B3D]/30 backdrop-blur-2xl rounded-3xl p-5 border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.3)] min-h-[600px]">
+                  <div className="flex items-center justify-between mb-6 px-2 border-b border-white/5 pb-4">
+                    <h3 className="font-black text-[#F7F9FC] flex items-center gap-3 drop-shadow-sm">
+                      <span className="w-3 h-3 rounded-full bg-[#F59E0B] shadow-[0_0_12px_rgba(245,158,11,0.9)]"></span> Review Needed
                     </h3>
-                    <span className="bg-slate-800 text-slate-300 text-xs font-black px-3 py-1 rounded-full border border-slate-700">{reviewNeeded.length}</span>
+                    <span className="bg-[#1A1F2E]/80 backdrop-blur-md text-[#94A3B8] text-xs font-black px-3 py-1 rounded-full border border-white/5">{reviewNeeded.length}</span>
                   </div>
                   <div className="space-y-4">{reviewNeeded.map(c => <CandidateCard key={c.id} candidate={c} />)}</div>
                 </div>
 
-                {/* Archived Column */}
-                <div onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'archived')} className="bg-[#0F172A]/40 backdrop-blur-xl rounded-3xl p-5 border border-slate-800/50 shadow-2xl min-h-[600px] opacity-70 hover:opacity-100 transition-opacity">
-                  <div className="flex items-center justify-between mb-6 px-2 border-b border-slate-800/50 pb-4">
-                    <h3 className="font-black text-slate-400 flex items-center gap-3">
-                      <span className="w-3 h-3 rounded-full bg-slate-500 shadow-[0_0_10px_rgba(100,116,139,0.5)]"></span> 
-                      Archived
+                {/* Archived */}
+                <div onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'archived')} className="bg-[#242B3D]/20 backdrop-blur-xl rounded-3xl p-5 border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.2)] min-h-[600px] opacity-70 hover:opacity-100 transition-opacity">
+                  <div className="flex items-center justify-between mb-6 px-2 border-b border-white/5 pb-4">
+                    <h3 className="font-black text-[#94A3B8] flex items-center gap-3">
+                      <span className="w-3 h-3 rounded-full bg-[#94A3B8] shadow-[0_0_10px_rgba(148,163,184,0.5)]"></span> Archived
                     </h3>
-                    <span className="bg-slate-800 text-slate-400 text-xs font-black px-3 py-1 rounded-full border border-slate-700">{archived.length}</span>
+                    <span className="bg-[#1A1F2E]/80 backdrop-blur-md text-[#94A3B8] text-xs font-black px-3 py-1 rounded-full border border-white/5">{archived.length}</span>
                   </div>
                   <div className="space-y-4">{archived.map(c => <CandidateCard key={c.id} candidate={c} />)}</div>
                 </div>
@@ -310,69 +316,69 @@ function HrDashboard() {
         )}
       </div>
 
-      {/* --- DEEP DIVE MODAL (DARK MODE) --- */}
+      {/* DEEP DIVE MODAL */}
       {selectedCandidate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#070B14]/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-[#0F172A] rounded-3xl shadow-2xl border border-slate-800 w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0A0D14]/70 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="bg-[#242B3D]/80 backdrop-blur-3xl rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.6)] border border-white/10 w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
             
-            <div className="px-8 py-6 border-b border-slate-800 flex justify-between items-start bg-slate-900/50">
+            <div className="px-8 py-6 border-b border-white/5 flex justify-between items-start bg-[#1A1F2E]/40 backdrop-blur-md">
               <div>
-                <span className="px-3 py-1.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest mb-4 inline-flex items-center gap-2">
+                <span className="px-3 py-1.5 bg-[#2F6FED]/20 backdrop-blur-md text-[#2F6FED] border border-[#2F6FED]/30 rounded-lg text-[10px] font-black uppercase tracking-widest mb-4 inline-flex items-center gap-2 shadow-sm">
                   Intelligence Report • Job #{selectedCandidate.job_id}
-                  {selectedCandidate.is_human_overridden && <span className="bg-blue-600 text-white px-2 py-0.5 rounded-md">✋ Human Override Active</span>}
+                  {selectedCandidate.is_human_overridden && <span className="bg-[#2F6FED] text-white px-2 py-0.5 rounded-md">✋ Human Override Active</span>}
                 </span>
-                <h2 className="text-3xl font-black text-white leading-tight flex items-center gap-3">
+                <h2 className="text-3xl font-black text-[#F7F9FC] leading-tight flex items-center gap-3 drop-shadow-sm">
                   {selectedCandidate.filename.includes('🔒') ? '🛡️' : '📄'} {selectedCandidate.filename.replace('🔒 Anonymous_Candidate_', 'Candidate_')}
                 </h2>
               </div>
-              <button onClick={() => setSelectedCandidate(null)} className="w-10 h-10 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-full flex items-center justify-center transition-colors font-bold border border-slate-700">✕</button>
+              <button onClick={() => setSelectedCandidate(null)} className="w-10 h-10 bg-[#1A1F2E]/50 hover:bg-white/10 text-[#94A3B8] hover:text-[#F7F9FC] rounded-full flex items-center justify-center transition-colors font-bold border border-white/5 backdrop-blur-md">✕</button>
             </div>
 
-            <div className="overflow-y-auto flex-1 custom-scrollbar bg-[#0B1121] flex flex-col md:flex-row">
-              <div className="p-8 flex-1 border-r border-slate-800">
+            <div className="overflow-y-auto flex-1 custom-scrollbar bg-transparent flex flex-col md:flex-row">
+              <div className="p-8 flex-1 border-r border-white/5">
                 
                 <div className="grid grid-cols-2 gap-6 mb-8">
-                  <div className="bg-[#1E293B] p-6 rounded-2xl border border-slate-700 shadow-lg text-center">
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Total Match</p>
-                    <p className={`text-4xl font-black ${selectedCandidate.final_score >= 75 ? 'text-emerald-400' : selectedCandidate.final_score >= 50 ? 'text-amber-400' : 'text-slate-400'}`}>{selectedCandidate.final_score.toFixed(1)}%</p>
+                  <div className="bg-[#242B3D]/50 backdrop-blur-md p-6 rounded-2xl border border-white/5 shadow-lg text-center">
+                    <p className="text-[10px] font-black uppercase text-[#94A3B8] tracking-widest mb-2">Total Match</p>
+                    <p className={`text-4xl font-black drop-shadow-md ${selectedCandidate.final_score >= 75 ? 'text-[#2FBF71]' : selectedCandidate.final_score >= 50 ? 'text-[#F59E0B]' : 'text-[#94A3B8]'}`}>{selectedCandidate.final_score.toFixed(1)}%</p>
                   </div>
-                  <div className="bg-[#1E293B] p-6 rounded-2xl border border-slate-700 shadow-lg text-center">
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Contextual Exp. (Semantic)</p>
-                    <p className="text-3xl font-black text-white">{(selectedCandidate.semantic_score * 100).toFixed(1)}%</p>
+                  <div className="bg-[#242B3D]/50 backdrop-blur-md p-6 rounded-2xl border border-white/5 shadow-lg text-center">
+                    <p className="text-[10px] font-black uppercase text-[#94A3B8] tracking-widest mb-2">Contextual Exp. (Semantic)</p>
+                    <p className="text-3xl font-black text-[#2F6FED] drop-shadow-md">{(selectedCandidate.semantic_score * 100).toFixed(1)}%</p>
                   </div>
                 </div>
 
-                <div className="bg-[#1E293B] p-8 rounded-3xl border border-slate-700 shadow-lg flex flex-col items-center justify-center mb-8">
-                  <h3 className="text-sm font-black text-slate-300 uppercase tracking-widest mb-8">Explainable AI Vectors</h3>
-                  <div className="bg-[#0F172A] p-6 rounded-full border border-slate-800 shadow-inner">
+                <div className="bg-[#242B3D]/50 backdrop-blur-md p-8 rounded-3xl border border-white/5 shadow-lg flex flex-col items-center justify-center mb-8">
+                  <h3 className="text-sm font-black text-[#F7F9FC] uppercase tracking-widest mb-8 drop-shadow-sm">Explainable AI Vectors</h3>
+                  <div className="bg-[#1A1F2E]/60 backdrop-blur-md p-6 md:p-8 w-full max-w-lg rounded-3xl border border-white/5 shadow-inner">
                     <XAIDial featureBreakdown={{ skill_overlap_score: selectedCandidate.skill_overlap_score, semantic_score: selectedCandidate.semantic_score, lexical_score: selectedCandidate.lexical_score }} />
                   </div>
                 </div>
 
-                <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 shadow-inner mb-8">
-                  <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-6 flex items-center gap-3">
-                    <span className="p-2 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20">🧠</span> 
+                <div className="bg-[#242B3D]/50 backdrop-blur-md p-8 rounded-3xl border border-white/5 shadow-inner mb-8">
+                  <h4 className="text-xs font-black uppercase text-[#94A3B8] tracking-widest mb-6 flex items-center gap-3">
+                    <span className="p-2 bg-[#2F6FED]/20 backdrop-blur-sm rounded-xl text-[#2F6FED] border border-[#2F6FED]/30 shadow-sm">🧠</span> 
                     AI Screening Insights
                   </h4>
                   <ul className="space-y-4">
                     {generateXAIReasons(selectedCandidate).map((reason, idx) => (
-                      <li key={idx} className="flex items-start gap-4 text-sm font-medium p-5 rounded-2xl bg-[#1E293B] border border-slate-700 shadow-sm">
-                        {reason.type === 'positive' && <span className="text-emerald-400 text-xl mt-0.5 shadow-[0_0_10px_rgba(16,185,129,0.3)] rounded-full">✓</span>}
-                        {reason.type === 'negative' && <span className="text-red-400 text-xl mt-0.5">✕</span>}
-                        {reason.type === 'warning' && <span className="text-amber-400 text-xl mt-0.5">⚠️</span>}
-                        {reason.type === 'danger' && <span className="text-red-500 text-xl mt-0.5 animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]">🚨</span>}
-                        <span className={reason.type === 'positive' ? 'text-emerald-300 leading-relaxed' : reason.type === 'negative' ? 'text-slate-300 leading-relaxed' : reason.type === 'warning' ? 'text-amber-300 leading-relaxed' : 'text-red-400 font-bold leading-relaxed'}>{reason.text}</span>
+                      <li key={idx} className="flex items-start gap-4 text-sm font-medium p-5 rounded-2xl bg-[#1A1F2E]/50 backdrop-blur-md border border-white/5 shadow-sm">
+                        {reason.type === 'positive' && <span className="text-[#2FBF71] text-xl mt-0.5 shadow-[0_0_10px_rgba(47,191,113,0.4)] rounded-full">✓</span>}
+                        {reason.type === 'negative' && <span className="text-[#94A3B8] text-xl mt-0.5">✕</span>}
+                        {reason.type === 'warning' && <span className="text-[#F59E0B] text-xl mt-0.5">⚠️</span>}
+                        {reason.type === 'danger' && <span className="text-[#E85D75] text-xl mt-0.5 animate-pulse drop-shadow-[0_0_10px_rgba(232,93,117,0.9)]">🚨</span>}
+                        <span className={`drop-shadow-sm ${reason.type === 'positive' ? 'text-[#2FBF71] leading-relaxed' : reason.type === 'negative' ? 'text-[#94A3B8] leading-relaxed' : reason.type === 'warning' ? 'text-[#F59E0B] leading-relaxed' : 'text-[#E85D75] font-bold leading-relaxed'}`}>{reason.text}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
               </div>
 
-              <div className="w-full md:w-96 bg-[#0F172A] p-8 flex flex-col border-l border-slate-800">
-                <div className="mb-8"><h3 className="text-xl font-black text-white flex items-center gap-3"><span>✍️</span> Human Evaluation</h3></div>
+              <div className="w-full md:w-96 bg-[#242B3D]/30 backdrop-blur-md p-8 flex flex-col border-l border-white/5">
+                <div className="mb-8"><h3 className="text-xl font-black text-[#F7F9FC] flex items-center gap-3 drop-shadow-sm"><span>✍️</span> Human Evaluation</h3></div>
                 <div className="flex-1 flex flex-col">
-                  <textarea value={recruiterNote} onChange={(e) => setRecruiterNote(e.target.value)} placeholder="Enter manual recruiter notes here..." className="flex-1 w-full p-5 rounded-2xl border border-slate-700 bg-[#1E293B] text-slate-300 placeholder:text-slate-600 focus:bg-[#0B1121] focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all text-sm resize-none shadow-inner" />
-                  <button onClick={handleSaveNote} disabled={savingNote || recruiterNote === (selectedCandidate.recruiter_notes || '')} className="mt-6 w-full bg-blue-600 hover:bg-blue-500 text-white font-black tracking-wide py-4 rounded-xl transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)] active:scale-95 disabled:opacity-50 disabled:shadow-none">
+                  <textarea value={recruiterNote} onChange={(e) => setRecruiterNote(e.target.value)} placeholder="Enter manual recruiter notes here..." className="flex-1 w-full p-5 rounded-2xl border border-white/5 bg-[#1A1F2E]/50 backdrop-blur-md text-[#F7F9FC] placeholder:text-[#94A3B8] focus:bg-[#1A1F2E]/80 focus:ring-2 focus:ring-[#2F6FED]/50 outline-none transition-all text-sm resize-none shadow-inner" />
+                  <button onClick={handleSaveNote} disabled={savingNote || recruiterNote === (selectedCandidate.recruiter_notes || '')} className="mt-6 w-full bg-[#2F6FED]/90 backdrop-blur-md border border-white/10 hover:bg-[#2563EB] text-white font-black tracking-wide py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(47,111,237,0.4)] active:scale-95 disabled:opacity-50 disabled:shadow-none">
                     {savingNote ? "SAVING..." : "SAVE NOTES"}
                   </button>
                 </div>
@@ -382,54 +388,59 @@ function HrDashboard() {
         </div>
       )}
 
-      {/* =========================================
-          GLOBAL AI COPILOT (DARK MODE WIDGET)
-          ========================================= */}
-      <button onClick={() => setGlobalChatOpen(!globalChatOpen)} className="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-[0_10px_30px_rgba(37,99,235,0.5)] flex items-center justify-center text-3xl transition-transform hover:scale-110 z-40 border border-blue-400/30">💬</button>
+      {/* GLOBAL COPILOT */}
+      <button onClick={() => setGlobalChatOpen(!globalChatOpen)} className="fixed bottom-8 right-8 w-16 h-16 bg-[#2F6FED]/90 backdrop-blur-md border border-white/20 hover:bg-[#2563EB] text-white rounded-full shadow-[0_10px_30px_rgba(47,111,237,0.6)] flex items-center justify-center text-3xl transition-transform hover:scale-110 z-40">💬</button>
 
       {globalChatOpen && (
-        <div className="fixed bottom-32 right-8 w-[400px] bg-[#0F172A] rounded-3xl shadow-2xl border border-slate-700 overflow-hidden z-50 flex flex-col h-[600px] animate-in slide-in-from-bottom-8 duration-300">
+        <div className="fixed bottom-32 right-8 w-[400px] bg-[#242B3D]/70 backdrop-blur-2xl rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-white/10 overflow-hidden z-50 flex flex-col h-[600px] animate-in slide-in-from-bottom-8 duration-300">
           
-          <div className="bg-[#1E293B] p-5 text-white flex flex-col border-b border-slate-700 shadow-md z-10 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+          {/* UPDATED HEADER: Removed overflow-hidden and increased z-index to 30 */}
+          <div className="bg-[#1A1F2E]/60 backdrop-blur-md p-5 text-white flex flex-col border-b border-white/5 shadow-md z-30 relative">
+            
+            {/* We moved overflow-hidden to an absolute wrapper just for the glowing orb! */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-t-3xl">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#2F6FED]/20 rounded-full blur-2xl"></div>
+            </div>
+
             <div className="flex justify-between items-center mb-4 relative z-10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-xl border border-blue-500/30 shadow-[0_0_15px_rgba(37,99,235,0.2)]">🤖</div>
+                <div className="w-10 h-10 rounded-xl bg-[#2F6FED]/30 backdrop-blur-md flex items-center justify-center text-xl border border-white/10 shadow-[0_0_15px_rgba(47,111,237,0.3)]">🤖</div>
                 <div>
-                  <h3 className="font-black text-base leading-tight">Global ATS Copilot</h3>
-                  <p className="text-[10px] text-blue-400 font-black uppercase tracking-widest mt-0.5">Bulk Filtering Mode</p>
+                  <h3 className="font-black text-base text-[#F7F9FC] leading-tight drop-shadow-sm">Global ATS Copilot</h3>
+                  <p className="text-[10px] text-[#2F6FED] font-black uppercase tracking-widest mt-0.5 drop-shadow-sm">Bulk Filtering Mode</p>
                 </div>
               </div>
-              <button onClick={() => setGlobalChatOpen(false)} className="text-slate-400 hover:text-white transition-colors w-8 h-8 flex items-center justify-center bg-slate-800 rounded-full hover:bg-slate-700 border border-slate-700">✕</button>
+              <button onClick={() => setGlobalChatOpen(false)} className="text-[#94A3B8] hover:text-[#F7F9FC] transition-colors w-8 h-8 flex items-center justify-center bg-[#242B3D]/80 backdrop-blur-md rounded-full hover:bg-white/10 border border-white/5">✕</button>
             </div>
             
-            <select 
-              value={chatJobId} 
-              onChange={(e) => setChatJobId(e.target.value)}
-              className="w-full bg-[#0B1121] text-xs font-bold text-slate-300 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/50 transition-all appearance-none cursor-pointer relative z-10 shadow-inner"
-            >
-              <option value="">🌍 Search Entire Company Database</option>
-              {dbJobs.map(job => (
-                <option key={job.id} value={job.id}>🎯 Role: {job.title} (Job #{job.id})</option>
-              ))}
-            </select>
+            <div className="relative z-20">
+              <CustomDropdown 
+                value={chatJobId} 
+                onChange={setChatJobId} 
+                options={[
+                  { value: "", label: "🌍 Search Entire Company Database" },
+                  ...dbJobs.map(job => ({ value: job.id, label: `🎯 Role: ${job.title} (Job #${job.id})` }))
+                ]} 
+                placeholder="🌍 Search Entire Company Database"
+              />
+            </div>
           </div>
 
-          <div className="flex-1 p-6 overflow-y-auto bg-[#0B1121] space-y-5 custom-scrollbar">
+          <div className="flex-1 p-6 overflow-y-auto bg-transparent space-y-5 custom-scrollbar">
             {globalChatHistory.length === 0 ? (
-              <div className="text-center text-slate-400 mt-10 px-4 animate-in zoom-in-95">
-                <div className="w-20 h-20 bg-[#1E293B] rounded-full shadow-lg border border-slate-700 flex items-center justify-center text-4xl mx-auto mb-6">🔎</div>
-                <p className="font-black text-white text-lg mb-2">Query your Talent Pool</p>
-                <p className="text-sm font-medium leading-relaxed text-slate-500">Select a specific job role above to filter, then ask me to shortlist candidates.</p>
+              <div className="text-center text-[#94A3B8] mt-10 px-4 animate-in zoom-in-95">
+                <div className="w-20 h-20 bg-[#242B3D]/80 backdrop-blur-md rounded-full shadow-lg border border-white/5 flex items-center justify-center text-4xl mx-auto mb-6">🔎</div>
+                <p className="font-black text-[#F7F9FC] text-lg mb-2 drop-shadow-sm">Query your Talent Pool</p>
+                <p className="text-sm font-medium leading-relaxed">Select a specific job role above to filter, then ask me to shortlist candidates.</p>
                 <div className="mt-8 space-y-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 mb-2">Try asking:</p>
-                  <p className="text-xs font-medium italic bg-[#1E293B] p-3 rounded-xl border border-slate-700 shadow-sm cursor-pointer hover:border-blue-500/50 hover:text-blue-400 transition-colors" onClick={() => setGlobalChatInput("Show me the top 3 candidates for this role")}>"Show me the top 3 candidates for this role"</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest mb-2">Try asking:</p>
+                  <p className="text-xs font-medium italic bg-[#242B3D]/50 backdrop-blur-md p-3 rounded-xl border border-white/5 shadow-sm cursor-pointer hover:border-[#2F6FED]/50 hover:text-[#2F6FED] transition-colors" onClick={() => setGlobalChatInput("Show me the top 3 candidates for this role")}>"Show me the top 3 candidates for this role"</p>
                 </div>
               </div>
             ) : (
               globalChatHistory.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
-                  <div className={`max-w-[85%] px-5 py-3.5 rounded-2xl text-sm shadow-md prose prose-sm prose-p:leading-relaxed prose-li:my-0 prose-strong:text-white ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-sm font-medium' : 'bg-[#1E293B] border border-slate-700 text-slate-300 rounded-bl-sm prose-p:text-slate-300'}`}>
+                  <div className={`max-w-[85%] px-5 py-3.5 rounded-2xl text-sm shadow-md prose prose-sm prose-p:leading-relaxed prose-li:my-0 prose-strong:text-[#F7F9FC] backdrop-blur-md border border-white/5 ${msg.role === 'user' ? 'bg-[#2F6FED]/90 text-white rounded-br-sm font-medium' : 'bg-[#242B3D]/80 text-[#F7F9FC] rounded-bl-sm prose-p:text-[#F7F9FC]'}`}>
                     {msg.role === 'ai' ? <ReactMarkdown>{String(msg.content)}</ReactMarkdown> : msg.content}
                   </div>
                 </div>
@@ -437,25 +448,18 @@ function HrDashboard() {
             )}
             {globalChatLoading && (
               <div className="flex justify-start">
-                 <div className="px-5 py-4 rounded-2xl bg-[#1E293B] border border-slate-700 text-slate-400 flex items-center gap-2 rounded-bl-sm shadow-md">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></span>
-                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></span>
-                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></span>
+                 <div className="px-5 py-4 rounded-2xl bg-[#242B3D]/80 backdrop-blur-md border border-white/5 text-[#94A3B8] flex items-center gap-2 rounded-bl-sm shadow-md">
+                    <span className="w-2 h-2 bg-[#2F6FED] rounded-full animate-bounce"></span>
+                    <span className="w-2 h-2 bg-[#2F6FED] rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></span>
+                    <span className="w-2 h-2 bg-[#2F6FED] rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></span>
                  </div>
               </div>
             )}
           </div>
 
-          <form onSubmit={handleGlobalChat} className="p-5 bg-[#1E293B] border-t border-slate-700 flex gap-3">
-            <input
-              type="text"
-              value={globalChatInput}
-              onChange={(e) => setGlobalChatInput(e.target.value)}
-              placeholder="Filter candidates..."
-              className="flex-1 px-4 py-3 bg-[#0B1121] text-white border border-slate-700 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-slate-600"
-              disabled={globalChatLoading}
-            />
-            <button type="submit" disabled={globalChatLoading || !globalChatInput.trim()} className="bg-blue-600 text-white w-12 h-12 flex items-center justify-center rounded-xl font-bold hover:bg-blue-500 disabled:opacity-50 transition-colors shadow-[0_0_15px_rgba(37,99,235,0.3)] active:scale-95 disabled:shadow-none">➤</button>
+          <form onSubmit={handleGlobalChat} className="p-5 bg-[#1A1F2E]/60 backdrop-blur-md border-t border-white/5 flex gap-3">
+            <input type="text" value={globalChatInput} onChange={(e) => setGlobalChatInput(e.target.value)} placeholder="Filter candidates..." className="flex-1 px-4 py-3 bg-[#242B3D]/50 backdrop-blur-md text-[#F7F9FC] border border-white/5 rounded-xl text-sm font-medium focus:outline-none focus:bg-[#242B3D]/80 focus:ring-2 focus:ring-[#2F6FED]/50 transition-all placeholder:text-[#94A3B8]" disabled={globalChatLoading} />
+            <button type="submit" disabled={globalChatLoading || !globalChatInput.trim()} className="bg-[#2F6FED]/90 backdrop-blur-md border border-white/10 text-white w-12 h-12 flex items-center justify-center rounded-xl font-bold hover:bg-[#2563EB] disabled:opacity-50 transition-colors shadow-[0_0_15px_rgba(47,111,237,0.3)] active:scale-95 disabled:shadow-none">➤</button>
           </form>
         </div>
       )}

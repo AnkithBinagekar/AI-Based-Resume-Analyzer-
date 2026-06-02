@@ -293,36 +293,36 @@ async def analyze_resume(
                 CRITICAL: You must generate EXACTLY {len(top_missing_skills)} cards. Do not stop early.
                 
                 <div class="mb-6">
-                    <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">
-                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <h3 class="text-xl font-black text-[#F7F9FC] flex items-center gap-2 drop-shadow-sm">
+                        <svg class="w-6 h-6 text-[#2F6FED]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                         Skill Optimization Path
                     </h3>
-                    <p class="text-sm text-slate-500 mt-1 font-medium">Targeted resources to close your technical gap.</p>
+                    <p class="text-sm text-[#94A3B8] mt-1 font-medium">Targeted resources to close your technical gap.</p>
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="group relative flex flex-col p-5 bg-white border border-slate-200 hover:border-blue-300 rounded-2xl shadow-sm hover:shadow-md transition-all">
+                    <div class="group relative flex flex-col p-5 bg-[#242B3D]/80 backdrop-blur-md border border-[#374151] hover:border-[#2F6FED]/50 rounded-2xl shadow-lg transition-all">
                         
                         <div class="flex items-center gap-3 mb-5">
-                            <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                            <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-[#1A1F2E] border border-[#374151] text-[#94A3B8] group-hover:border-[#2F6FED]/30 group-hover:text-[#2F6FED] transition-colors shadow-inner">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
                             </div>
                             <div>
-                                <h4 class="text-base font-bold text-slate-800 leading-tight">[Skill Name]</h4>
-                                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mt-0.5">Missing Requirement</p>
+                                <h4 class="text-base font-bold text-[#F7F9FC] leading-tight drop-shadow-sm">[Skill Name]</h4>
+                                <p class="text-[10px] font-bold text-[#F59E0B] uppercase tracking-wider mt-0.5">Missing Requirement</p>
                             </div>
                         </div>
                         
                         <div class="mt-auto grid grid-cols-2 gap-2">
-                            <a href="https://www.udemy.com/courses/search/?q=[Skill Name]" target="_blank" class="flex items-center justify-center py-2 px-3 bg-slate-50 hover:bg-purple-50 text-slate-600 hover:text-purple-700 text-xs font-bold rounded-xl transition-colors no-underline">
+                            <a href="https://www.udemy.com/courses/search/?q=[Skill Name]" target="_blank" class="flex items-center justify-center py-2 px-3 bg-[#1A1F2E] hover:bg-[#2F6FED]/20 border border-[#374151] hover:border-[#2F6FED]/50 text-[#94A3B8] hover:text-[#F7F9FC] text-xs font-bold rounded-xl transition-all no-underline shadow-sm">
                                 Udemy
                             </a>
-                            <a href="https://www.youtube.com/results?search_query=[Skill Name]+tutorial" target="_blank" class="flex items-center justify-center py-2 px-3 bg-slate-50 hover:bg-red-50 text-slate-600 hover:text-red-700 text-xs font-bold rounded-xl transition-colors no-underline">
+                            <a href="https://www.youtube.com/results?search_query=[Skill Name]+tutorial" target="_blank" class="flex items-center justify-center py-2 px-3 bg-[#1A1F2E] hover:bg-[#E85D75]/20 border border-[#374151] hover:border-[#E85D75]/50 text-[#94A3B8] hover:text-[#F7F9FC] text-xs font-bold rounded-xl transition-all no-underline shadow-sm">
                                 YouTube
                             </a>
                         </div>
                     </div>
-                    </div>
+                </div>
                 """
                 
                 chat_completion = groq_client.chat.completions.create(
