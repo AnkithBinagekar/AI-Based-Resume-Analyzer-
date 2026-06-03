@@ -26,6 +26,11 @@ from groq import Groq
 
 # --- NEW SECURITY IMPORTS ---
 from pydantic import BaseModel
+class StatusUpdateRequest(BaseModel):
+    status: str
+
+class NoteUpdateRequest(BaseModel):
+    notes: str
 from fastapi.security import OAuth2PasswordRequestForm
 from utils.auth import get_password_hash, verify_password, create_access_token
 
@@ -862,3 +867,26 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         "token_type": "bearer",
         "email": user.email
     }
+
+@app.put("/api/candidates/{candidate_id}/status")
+def update_candidate_status(candidate_id: int, req: StatusUpdateRequest, db: Session = Depends(get_db)):
+    # FIXED: Added 'models.' before Candidate
+    candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    candidate.pipeline_status = req.status
+    candidate.is_human_overridden = True
+    db.commit()
+    return {"message": "Status updated successfully"}
+
+@app.put("/api/candidates/{candidate_id}/notes")
+def update_candidate_notes(candidate_id: int, req: NoteUpdateRequest, db: Session = Depends(get_db)):
+    # FIXED: Added 'models.' before Candidate
+    candidate = db.query(models.Candidate).filter(models.Candidate.id == candidate_id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    candidate.recruiter_notes = req.notes
+    db.commit()
+    return {"message": "Notes updated successfully"}

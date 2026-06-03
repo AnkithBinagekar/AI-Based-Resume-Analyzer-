@@ -68,7 +68,7 @@ function HrDashboard() {
         let aiStatus = 'archived';
         if (c.final_score >= 75) aiStatus = 'shortlisted';
         else if (c.final_score >= 50) aiStatus = 'review';
-        return { ...c, pipeline_status: c.pipeline_status || aiStatus, is_human_overridden: false, recruiter_notes: c.recruiter_notes || '' };
+        return { ...c, pipeline_status: c.pipeline_status || aiStatus, is_human_overridden: c.is_human_overridden || false, recruiter_notes: c.recruiter_notes || '' };
       });
       setCandidates(initializedCandidates);
     } catch (err) { console.error("Failed to fetch candidates", err); } finally { setLoading(false); }
@@ -103,21 +103,53 @@ function HrDashboard() {
 
   const handleDragStart = (e, candidateId) => { e.dataTransfer.setData('candidateId', candidateId); };
   const handleDragOver = (e) => { e.preventDefault(); };
-  const handleDrop = (e, newStatus) => {
-    e.preventDefault();
-    const candidateId = Number(e.dataTransfer.getData('candidateId'));
-    setCandidates(prev => prev.map(c => c.id === candidateId && c.pipeline_status !== newStatus ? { ...c, pipeline_status: newStatus, is_human_overridden: true } : c));
-  };
-
+  
   const openDeepDive = (candidate) => { setSelectedCandidate(candidate); setRecruiterNote(candidate.recruiter_notes || ''); };
 
-  const handleSaveNote = () => {
-    setSavingNote(true);
-    setTimeout(() => {
-      setCandidates(prev => prev.map(c => c.id === selectedCandidate.id ? { ...c, recruiter_notes: recruiterNote } : c));
-      setSavingNote(false);
-    }, 600);
+  // ========================================================
+  // DATABASE PERSISTENCE FUNCTIONS
+  // ========================================================
+  
+  const handleDrop = async (e, newStatus) => {
+    e.preventDefault();
+    const candidateId = Number(e.dataTransfer.getData('candidateId'));
+    
+    setCandidates(prev => prev.map(c => 
+      c.id === candidateId && c.pipeline_status !== newStatus ? { ...c, pipeline_status: newStatus, is_human_overridden: true } : c
+    ));
+
+    try {
+      await axios.put(`${API_BASE_URL}/api/candidates/${candidateId}/status`, { status: newStatus });
+    } catch (error) {
+      console.error("Failed to sync drag and drop status", error);
+    }
   };
+
+  const handleSaveNote = async () => {
+    setSavingNote(true);
+    try {
+      await axios.put(`${API_BASE_URL}/api/candidates/${selectedCandidate.id}/notes`, { notes: recruiterNote });
+      setCandidates(prev => prev.map(c => c.id === selectedCandidate.id ? { ...c, recruiter_notes: recruiterNote } : c));
+    } catch (error) {
+      console.error("Failed to save note:", error);
+      alert("Failed to save notes to the database.");
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const handleStatusChange = async (candidateId, newStatus) => {
+    setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, pipeline_status: newStatus, is_human_overridden: true, recruiter_notes: recruiterNote } : c));
+    setSelectedCandidate(null); 
+    
+    try {
+      await axios.put(`${API_BASE_URL}/api/candidates/${candidateId}/status`, { status: newStatus });
+    } catch (error) {
+      console.error("Failed to update status:", error);
+    }
+  };
+
+  // ========================================================
 
   const handleGlobalChat = async (e) => {
     e.preventDefault();
@@ -147,72 +179,112 @@ function HrDashboard() {
   const reviewNeeded = candidates.filter(c => c.pipeline_status === 'review');
   const archived = candidates.filter(c => c.pipeline_status === 'archived');
 
-  const getScoreBadge = (score) => {
-    if (score >= 75) return <span className="px-3 py-1 bg-[#2FBF71]/20 backdrop-blur-md text-[#2FBF71] border border-[#2FBF71]/30 rounded-full text-xs font-black shadow-[0_0_15px_rgba(47,191,113,0.2)]">{score.toFixed(1)}%</span>;
-    if (score >= 50) return <span className="px-3 py-1 bg-[#F59E0B]/20 backdrop-blur-md text-[#F59E0B] border border-[#F59E0B]/30 rounded-full text-xs font-black shadow-[0_0_15px_rgba(245,158,11,0.2)]">{score.toFixed(1)}%</span>;
-    return <span className="px-3 py-1 bg-[#1A1F2E]/80 backdrop-blur-md text-[#94A3B8] border border-white/10 rounded-full text-xs font-black">{score.toFixed(1)}%</span>;
+  const getCandidateInsights = (candidate) => {
+    if (!candidate) return { strengths: [], concerns: [] };
+    const strengths = [];
+    const concerns = [];
+    const semantic = parseFloat(candidate.semantic_score || 0);
+    const lexical = parseFloat(candidate.lexical_score || 0);
+    const skills = parseFloat(candidate.skill_overlap_score || 0);
+
+    if (skills >= 0.7) strengths.push("Strong technical tool and skill alignment.");
+    if (semantic >= 0.6) strengths.push("High contextual experience for this role.");
+    if (lexical < 0.2 && semantic > 0.5) strengths.push("Authentic phrasing (Excellent vocabulary variance).");
+    if (candidate.total_yoe >= 3) strengths.push(`${candidate.total_yoe} years experience aligns well.`);
+    
+    if (candidate.missing_skills) concerns.push(`Missing key requirements: ${candidate.missing_skills.split(',').slice(0,3).join(', ')}`);
+    if (skills < 0.4) concerns.push("Severe gap in required technical skills.");
+    if (semantic < 0.3 && skills > 0.5) concerns.push("Domain mismatch: Has skills, but applied in a different context.");
+    if (lexical > (semantic + 0.3)) concerns.push("ATS Manipulation Risk: High exact keyword match suggests resume stuffing.");
+
+    if (strengths.length === 0) strengths.push("Meets baseline ATS requirements.");
+    
+    return { strengths, concerns };
   };
 
-  const generateXAIReasons = (candidate) => {
-    if (!candidate) return [];
-    const reasons = [];
-    const semantic = parseFloat(candidate.semantic_score);
-    const lexical = parseFloat(candidate.lexical_score);
-    const skills = parseFloat(candidate.skill_overlap_score);
+  const CandidateCard = ({ candidate }) => {
+    const score = candidate.final_score || 0;
+    const barColor = score >= 75 ? 'bg-[#2FBF71]' : score >= 50 ? 'bg-[#F59E0B]' : 'bg-[#94A3B8]';
+    const badgeColor = score >= 75 ? 'text-[#2FBF71] bg-[#2FBF71]/10 border-[#2FBF71]/30' : score >= 50 ? 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' : 'text-[#94A3B8] bg-[#1A1F2E]/80 border-white/5';
+    
+    let fraudAlert = null;
+    let fraudColor = "text-[#E85D75] border-[#E85D75]/30 bg-[#E85D75]/10";
+    if (candidate.filename.includes('[FRAUD]') || candidate.filename.includes('🔒')) {
+      fraudAlert = "⚠ MANUAL REVIEW REQ";
+      fraudColor = "text-[#F59E0B] border-[#F59E0B]/30 bg-[#F59E0B]/10"; 
+    } else if (parseFloat(candidate.lexical_score || 0) > parseFloat(candidate.semantic_score || 0) + 0.3) {
+      fraudAlert = "⚠ ATS MANIPULATION RISK"; 
+    }
 
-    if (lexical > (semantic + 0.3)) reasons.push({ type: 'danger', text: "Lexical Anomaly: Exact keyword match is unusually high compared to actual contextual experience. Potential Keyword Stuffing." });
-    else if (lexical < 0.2 && semantic > 0.5) reasons.push({ type: 'positive', text: "Excellent vocabulary variance. Candidate explains concepts well without blindly copying the Job Description." });
+    const topSkill = candidate.matched_skills 
+      ? candidate.matched_skills.split(',')[0].trim() 
+      : (parseFloat(candidate.skill_overlap_score || 0) >= 0.5 ? 'Tech Verified' : 'Review Skills');
 
-    if (skills >= 0.8) reasons.push({ type: 'positive', text: "Candidate possesses the vast majority of required technical tools." });
-    else if (skills < 0.4) reasons.push({ type: 'negative', text: "Severe skill gap detected. Missing core technical requirements." });
-
-    if (semantic >= 0.6) reasons.push({ type: 'positive', text: "High semantic alignment. Past experience contextually matches the job role." });
-    else if (semantic < 0.3 && skills > 0.5) reasons.push({ type: 'warning', text: "Domain Mismatch Risk: Has the technical skills, but applied them in a different context." });
-
-    return reasons;
-  };
-
-  const CandidateCard = ({ candidate }) => (
-    <div 
-      draggable 
-      onDragStart={(e) => handleDragStart(e, candidate.id)}
-      onClick={() => openDeepDive(candidate)} 
-      className={`bg-[#242B3D]/60 backdrop-blur-xl p-5 rounded-2xl shadow-lg border hover:-translate-y-1 transition-all duration-300 cursor-grab active:cursor-grabbing relative overflow-hidden group ${candidate.is_human_overridden ? 'border-[#2F6FED] ring-2 ring-[#2F6FED]/30' : 'border-white/10 hover:border-[#2F6FED]/60 hover:shadow-[0_0_20px_rgba(47,111,237,0.25)]'}`}
-    >
-      <div className="absolute top-0 right-0 w-20 h-20 bg-[#2F6FED]/10 rounded-bl-full -mr-4 -mt-4 z-0 group-hover:scale-125 transition-transform duration-500"></div>
-      <div className="relative z-10 flex justify-between items-start mb-4">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner border backdrop-blur-md ${candidate.filename.includes('🔒') ? 'bg-[#2F6FED]/20 text-[#2F6FED] border-[#2F6FED]/30' : 'bg-[#1A1F2E]/80 text-[#94A3B8] border-white/5'}`}>
-            {candidate.filename.includes('🔒') ? '🛡️' : '📄'}
-          </div>
-          <div className="overflow-hidden">
-            <h4 className="text-sm font-bold text-[#F7F9FC] truncate drop-shadow-sm" title={candidate.filename}>{candidate.filename.replace('🔒 Anonymous_Candidate_', 'Candidate_')}</h4>
-            <div className="flex items-center gap-2 mt-0.5">
+    return (
+      <div 
+        draggable 
+        onDragStart={(e) => handleDragStart(e, candidate.id)}
+        onClick={() => openDeepDive(candidate)} 
+        className={`bg-[#242B3D]/60 backdrop-blur-xl p-5 rounded-2xl shadow-lg border hover:-translate-y-1 transition-all duration-300 cursor-grab active:cursor-grabbing relative overflow-hidden group ${candidate.is_human_overridden ? 'border-[#2F6FED] ring-2 ring-[#2F6FED]/30' : 'border-white/10 hover:border-[#2F6FED]/60 hover:shadow-[0_0_20px_rgba(47,111,237,0.25)]'}`}
+      >
+        <div className="absolute top-0 right-0 w-20 h-20 bg-[#2F6FED]/10 rounded-bl-full -mr-4 -mt-4 z-0 group-hover:scale-125 transition-transform duration-500"></div>
+        
+        <div className="relative z-10 flex justify-between items-start mb-3">
+          <div className="flex-1 overflow-hidden pr-3">
+            <h4 className="text-sm font-black text-[#F7F9FC] truncate drop-shadow-sm" title={candidate.filename}>
+              {candidate.filename.includes('🔒') ? '🛡️ ' : '📄 '}
+              {candidate.filename.replace('🔒 Anonymous_Candidate_', 'Candidate_').replace('.pdf', '')}
+            </h4>
+            <div className="flex items-center gap-2 mt-1">
               <p className="text-[10px] uppercase tracking-widest font-bold text-[#94A3B8]">Job #{candidate.job_id}</p>
-              {candidate.is_human_overridden && <span className="text-[9px] uppercase font-black tracking-wider text-[#2F6FED] bg-[#2F6FED]/20 border border-[#2F6FED]/30 px-1.5 py-0.5 rounded-sm">✋ Override</span>}
             </div>
           </div>
+          <span className={`px-2.5 py-1 rounded-lg text-xs font-black shadow-sm border backdrop-blur-md ${badgeColor}`}>
+            {score.toFixed(1)}%
+          </span>
         </div>
-        {getScoreBadge(candidate.final_score)}
-      </div>
 
-      <div className="relative z-10 grid grid-cols-2 gap-2 mb-2">
-        <div className="bg-[#1A1F2E]/60 backdrop-blur-md p-2 rounded-lg border border-white/5 shadow-inner">
-          <p className="text-[9px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Experience</p>
-          <p className="text-xs font-black text-[#F7F9FC]">{candidate.total_yoe || 0} Yrs</p>
+        {fraudAlert && (
+          <div className={`relative z-10 mb-3 w-full border py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 shadow-inner ${fraudColor}`}>
+             <span className="text-[9px] font-black uppercase tracking-widest animate-pulse drop-shadow-sm">{fraudAlert}</span>
+          </div>
+        )}
+
+        <div className="relative z-10 mb-4">
+           <div className="flex justify-between items-center mb-1.5">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-[#94A3B8]">Match Strength</span>
+           </div>
+           <div className="w-full h-1.5 bg-[#1A1F2E]/80 rounded-full overflow-hidden shadow-inner border border-white/5">
+              <div className={`h-full rounded-full ${barColor} shadow-[0_0_8px_currentColor]`} style={{ width: `${score}%` }}></div>
+           </div>
         </div>
-        <div className="bg-[#1A1F2E]/60 backdrop-blur-md p-2 rounded-lg border border-white/5 shadow-inner">
-          <p className="text-[9px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Education</p>
-          <p className="text-xs font-black text-[#F7F9FC] truncate" title={candidate.highest_education}>{candidate.highest_education || 'Unknown'}</p>
+
+        <div className="relative z-10 flex gap-2">
+          <div className="flex-1 bg-[#1A1F2E]/60 backdrop-blur-md p-2 rounded-lg border border-white/5 shadow-inner">
+            <p className="text-[8px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Experience</p>
+            <p className="text-xs font-black text-[#F7F9FC]">{candidate.total_yoe || 0} Yrs</p>
+          </div>
+          
+          <div className="flex-1 bg-[#1A1F2E]/60 backdrop-blur-md p-2 rounded-lg border border-white/5 shadow-inner overflow-hidden">
+            <p className="text-[8px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Top Skill</p>
+            <p className="text-xs font-black text-[#2F6FED] truncate drop-shadow-sm" title={topSkill}>
+              {topSkill}
+            </p>
+          </div>
+          
+          {candidate.is_human_overridden && (
+            <div className="flex items-center justify-center bg-[#2F6FED]/20 border border-[#2F6FED]/30 px-2.5 rounded-lg shadow-sm">
+              <span className="text-sm" title="Human Overridden">✋</span>
+            </div>
+          )}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#1A1F2E] text-[#F7F9FC] pt-6 pb-20 relative overflow-x-hidden font-sans selection:bg-[#2F6FED]/30">
       
-      {/* Background Grid */}
       <div className="absolute inset-0 z-0 pointer-events-none flex justify-center">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#242B3D_1px,transparent_1px),linear-gradient(to_bottom,#242B3D_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-40"></div>
         <div className="absolute top-[10%] left-[20%] w-[600px] h-[600px] bg-[#2F6FED]/15 blur-[150px] rounded-full pointer-events-none mix-blend-screen"></div>
@@ -274,10 +346,10 @@ function HrDashboard() {
           </div>
         ) : (
           <div className="animate-in fade-in duration-700">
+            {/* --- KANBAN BOARD VIEW --- */}
             {viewMode === 'board' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                 
-                {/* Shortlisted */}
                 <div onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'shortlisted')} className="bg-[#242B3D]/30 backdrop-blur-2xl rounded-3xl p-5 border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.3)] min-h-[600px]">
                   <div className="flex items-center justify-between mb-6 px-2 border-b border-white/5 pb-4">
                     <h3 className="font-black text-[#F7F9FC] flex items-center gap-3 drop-shadow-sm">
@@ -288,7 +360,6 @@ function HrDashboard() {
                   <div className="space-y-4">{topMatches.map(c => <CandidateCard key={c.id} candidate={c} />)}</div>
                 </div>
 
-                {/* Review Needed */}
                 <div onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'review')} className="bg-[#242B3D]/30 backdrop-blur-2xl rounded-3xl p-5 border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.3)] min-h-[600px]">
                   <div className="flex items-center justify-between mb-6 px-2 border-b border-white/5 pb-4">
                     <h3 className="font-black text-[#F7F9FC] flex items-center gap-3 drop-shadow-sm">
@@ -299,7 +370,6 @@ function HrDashboard() {
                   <div className="space-y-4">{reviewNeeded.map(c => <CandidateCard key={c.id} candidate={c} />)}</div>
                 </div>
 
-                {/* Archived */}
                 <div onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'archived')} className="bg-[#242B3D]/20 backdrop-blur-xl rounded-3xl p-5 border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.2)] min-h-[600px] opacity-70 hover:opacity-100 transition-opacity">
                   <div className="flex items-center justify-between mb-6 px-2 border-b border-white/5 pb-4">
                     <h3 className="font-black text-[#94A3B8] flex items-center gap-3">
@@ -312,11 +382,87 @@ function HrDashboard() {
 
               </div>
             )}
+
+            {/* --- LIST VIEW --- */}
+            {viewMode === 'list' && (
+              <div className="bg-[#242B3D]/30 backdrop-blur-2xl rounded-3xl border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col">
+                <div className="grid grid-cols-12 gap-4 p-5 border-b border-white/5 bg-[#1A1F2E]/80 text-[10px] font-black text-[#94A3B8] uppercase tracking-widest">
+                  <div className="col-span-5 md:col-span-4">Candidate File</div>
+                  <div className="col-span-3 md:col-span-2">Pipeline Status</div>
+                  <div className="col-span-4 md:col-span-2">Match Score</div>
+                  <div className="hidden md:block md:col-span-3">Key Metrics</div>
+                  <div className="hidden md:block md:col-span-1 text-right">Action</div>
+                </div>
+                
+                <div className="divide-y divide-white/5 max-h-[800px] overflow-y-auto custom-scrollbar">
+                  {candidates.sort((a, b) => b.final_score - a.final_score).map(candidate => {
+                    const score = candidate.final_score || 0;
+                    const barColor = score >= 75 ? 'bg-[#2FBF71]' : score >= 50 ? 'bg-[#F59E0B]' : 'bg-[#94A3B8]';
+                    const statusColor = candidate.pipeline_status === 'shortlisted' ? 'text-[#2FBF71] bg-[#2FBF71]/10 border-[#2FBF71]/30' : candidate.pipeline_status === 'review' ? 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30' : 'text-[#94A3B8] bg-[#1A1F2E]/80 border-white/5';
+                    const statusText = candidate.pipeline_status === 'shortlisted' ? 'SHORTLISTED' : candidate.pipeline_status === 'review' ? 'REVIEW NEEDED' : 'ARCHIVED';
+                    
+                    let fraudAlert = null;
+                    if (candidate.filename.includes('[FRAUD]') || candidate.filename.includes('🔒')) fraudAlert = "⚠ MANUAL REVIEW";
+                    else if (parseFloat(candidate.lexical_score || 0) > parseFloat(candidate.semantic_score || 0) + 0.3) fraudAlert = "⚠ MANIPULATION RISK";
+
+                    const topSkill = candidate.matched_skills ? candidate.matched_skills.split(',')[0].trim() : (parseFloat(candidate.skill_overlap_score || 0) >= 0.5 ? 'Tech Verified' : 'Review Skills');
+
+                    return (
+                      <div key={candidate.id} onClick={() => openDeepDive(candidate)} className="grid grid-cols-12 gap-4 p-5 items-center hover:bg-[#2F6FED]/10 transition-colors cursor-pointer group">
+                        
+                        <div className="col-span-5 md:col-span-4 flex items-center gap-4 overflow-hidden">
+                          <div className={`w-10 h-10 rounded-xl flex shrink-0 items-center justify-center text-lg shadow-inner border backdrop-blur-md ${candidate.filename.includes('🔒') ? 'bg-[#2F6FED]/20 text-[#2F6FED] border-[#2F6FED]/30' : 'bg-[#1A1F2E]/80 text-[#94A3B8] border-white/5'}`}>
+                            {candidate.filename.includes('🔒') ? '🛡️' : '📄'}
+                          </div>
+                          <div className="overflow-hidden">
+                            <h4 className="text-sm font-bold text-[#F7F9FC] truncate group-hover:text-[#2F6FED] transition-colors">{candidate.filename.replace('🔒 Anonymous_Candidate_', 'Candidate_').replace('.pdf', '')}</h4>
+                            <p className="text-[10px] uppercase tracking-widest font-bold text-[#94A3B8] mt-0.5">Job #{candidate.job_id}</p>
+                          </div>
+                        </div>
+
+                        <div className="col-span-3 md:col-span-2 flex items-center">
+                          <span className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black shadow-sm border backdrop-blur-md ${statusColor}`}>
+                            {statusText} {candidate.is_human_overridden && <span className="ml-1" title="Human Overridden">✋</span>}
+                          </span>
+                        </div>
+
+                        <div className="col-span-4 md:col-span-2 flex flex-col justify-center pr-4">
+                          <div className="flex justify-between items-center mb-1.5">
+                            <span className={`text-xs font-black ${score >= 75 ? 'text-[#2FBF71]' : score >= 50 ? 'text-[#F59E0B]' : 'text-[#94A3B8]'}`}>{score.toFixed(1)}%</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-[#1A1F2E]/80 rounded-full overflow-hidden shadow-inner border border-white/5">
+                            <div className={`h-full rounded-full ${barColor} shadow-[0_0_8px_currentColor]`} style={{ width: `${score}%` }}></div>
+                          </div>
+                        </div>
+
+                        <div className="hidden md:flex md:col-span-3 gap-2">
+                          <div className="flex-1 bg-[#1A1F2E]/60 p-2 rounded-lg border border-white/5 shadow-inner">
+                            <p className="text-[8px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Experience</p>
+                            <p className="text-xs font-black text-[#F7F9FC]">{candidate.total_yoe || 0} Yrs</p>
+                          </div>
+                          <div className="flex-1 bg-[#1A1F2E]/60 p-2 rounded-lg border border-white/5 shadow-inner overflow-hidden">
+                            <p className="text-[8px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Top Skill</p>
+                            <p className="text-xs font-black text-[#2F6FED] truncate">{topSkill}</p>
+                          </div>
+                        </div>
+
+                        <div className="hidden md:flex md:col-span-1 justify-end items-center gap-3">
+                          {fraudAlert && <span className="text-[#E85D75] animate-pulse text-lg" title={fraudAlert}>🚨</span>}
+                          <button className="w-8 h-8 rounded-full bg-[#1A1F2E] border border-white/5 text-[#94A3B8] group-hover:bg-[#2F6FED]/20 group-hover:text-[#2F6FED] group-hover:border-[#2F6FED]/30 transition-all flex items-center justify-center shadow-sm">
+                            ➤
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* DEEP DIVE MODAL */}
+      {/* --- DEEP DIVE MODAL --- */}
       {selectedCandidate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0A0D14]/70 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="bg-[#242B3D]/80 backdrop-blur-3xl rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.6)] border border-white/10 w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
@@ -325,7 +471,7 @@ function HrDashboard() {
               <div>
                 <span className="px-3 py-1.5 bg-[#2F6FED]/20 backdrop-blur-md text-[#2F6FED] border border-[#2F6FED]/30 rounded-lg text-[10px] font-black uppercase tracking-widest mb-4 inline-flex items-center gap-2 shadow-sm">
                   Intelligence Report • Job #{selectedCandidate.job_id}
-                  {selectedCandidate.is_human_overridden && <span className="bg-[#2F6FED] text-white px-2 py-0.5 rounded-md">✋ Human Override Active</span>}
+                  {selectedCandidate.is_human_overridden && <span className="bg-[#2F6FED] text-white px-2 py-0.5 rounded-md ml-2">✋ Human Override Active</span>}
                 </span>
                 <h2 className="text-3xl font-black text-[#F7F9FC] leading-tight flex items-center gap-3 drop-shadow-sm">
                   {selectedCandidate.filename.includes('🔒') ? '🛡️' : '📄'} {selectedCandidate.filename.replace('🔒 Anonymous_Candidate_', 'Candidate_')}
@@ -355,32 +501,82 @@ function HrDashboard() {
                   </div>
                 </div>
 
-                <div className="bg-[#242B3D]/50 backdrop-blur-md p-8 rounded-3xl border border-white/5 shadow-inner mb-8">
-                  <h4 className="text-xs font-black uppercase text-[#94A3B8] tracking-widest mb-6 flex items-center gap-3">
-                    <span className="p-2 bg-[#2F6FED]/20 backdrop-blur-sm rounded-xl text-[#2F6FED] border border-[#2F6FED]/30 shadow-sm">🧠</span> 
-                    AI Screening Insights
-                  </h4>
-                  <ul className="space-y-4">
-                    {generateXAIReasons(selectedCandidate).map((reason, idx) => (
-                      <li key={idx} className="flex items-start gap-4 text-sm font-medium p-5 rounded-2xl bg-[#1A1F2E]/50 backdrop-blur-md border border-white/5 shadow-sm">
-                        {reason.type === 'positive' && <span className="text-[#2FBF71] text-xl mt-0.5 shadow-[0_0_10px_rgba(47,191,113,0.4)] rounded-full">✓</span>}
-                        {reason.type === 'negative' && <span className="text-[#94A3B8] text-xl mt-0.5">✕</span>}
-                        {reason.type === 'warning' && <span className="text-[#F59E0B] text-xl mt-0.5">⚠️</span>}
-                        {reason.type === 'danger' && <span className="text-[#E85D75] text-xl mt-0.5 animate-pulse drop-shadow-[0_0_10px_rgba(232,93,117,0.9)]">🚨</span>}
-                        <span className={`drop-shadow-sm ${reason.type === 'positive' ? 'text-[#2FBF71] leading-relaxed' : reason.type === 'negative' ? 'text-[#94A3B8] leading-relaxed' : reason.type === 'warning' ? 'text-[#F59E0B] leading-relaxed' : 'text-[#E85D75] font-bold leading-relaxed'}`}>{reason.text}</span>
-                      </li>
-                    ))}
-                  </ul>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <div className="bg-[#2FBF71]/5 backdrop-blur-md p-6 rounded-3xl border border-[#2FBF71]/20 shadow-inner">
+                    <h4 className="text-xs font-black uppercase text-[#2FBF71] tracking-widest mb-4 flex items-center gap-2">
+                      <span>✅</span> Key Strengths
+                    </h4>
+                    <ul className="space-y-3">
+                      {getCandidateInsights(selectedCandidate).strengths.map((str, idx) => (
+                        <li key={idx} className="text-sm text-[#F7F9FC] flex items-start gap-2">
+                          <span className="text-[#2FBF71] mt-0.5">•</span> <span>{str}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-[#E85D75]/5 backdrop-blur-md p-6 rounded-3xl border border-[#E85D75]/20 shadow-inner">
+                    <h4 className="text-xs font-black uppercase text-[#E85D75] tracking-widest mb-4 flex items-center gap-2">
+                      <span>⚠️</span> Areas of Concern
+                    </h4>
+                    <ul className="space-y-3">
+                      {getCandidateInsights(selectedCandidate).concerns.map((con, idx) => (
+                        <li key={idx} className="text-sm text-[#F7F9FC] flex items-start gap-2">
+                          <span className="text-[#E85D75] mt-0.5">•</span> <span>{con}</span>
+                        </li>
+                      ))}
+                      {getCandidateInsights(selectedCandidate).concerns.length === 0 && (
+                        <li className="text-sm text-[#94A3B8] italic">No major red flags detected.</li>
+                      )}
+                    </ul>
+                  </div>
                 </div>
               </div>
 
               <div className="w-full md:w-96 bg-[#242B3D]/30 backdrop-blur-md p-8 flex flex-col border-l border-white/5">
-                <div className="mb-8"><h3 className="text-xl font-black text-[#F7F9FC] flex items-center gap-3 drop-shadow-sm"><span>✍️</span> Human Evaluation</h3></div>
+                <div className="mb-6">
+                  <h3 className="text-xl font-black text-[#F7F9FC] flex items-center gap-3 drop-shadow-sm"><span>✍️</span> Human Evaluation</h3>
+                  <p className="text-[#94A3B8] text-xs font-bold uppercase tracking-widest mt-2 border-l-2 border-[#2F6FED] pl-3">AI recommends. Recruiters decide.</p>
+                </div>
+                
                 <div className="flex-1 flex flex-col">
-                  <textarea value={recruiterNote} onChange={(e) => setRecruiterNote(e.target.value)} placeholder="Enter manual recruiter notes here..." className="flex-1 w-full p-5 rounded-2xl border border-white/5 bg-[#1A1F2E]/50 backdrop-blur-md text-[#F7F9FC] placeholder:text-[#94A3B8] focus:bg-[#1A1F2E]/80 focus:ring-2 focus:ring-[#2F6FED]/50 outline-none transition-all text-sm resize-none shadow-inner" />
-                  <button onClick={handleSaveNote} disabled={savingNote || recruiterNote === (selectedCandidate.recruiter_notes || '')} className="mt-6 w-full bg-[#2F6FED]/90 backdrop-blur-md border border-white/10 hover:bg-[#2563EB] text-white font-black tracking-wide py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(47,111,237,0.4)] active:scale-95 disabled:opacity-50 disabled:shadow-none">
+                  <textarea 
+                    value={recruiterNote} 
+                    onChange={(e) => setRecruiterNote(e.target.value)} 
+                    placeholder="Enter manual recruiter notes here..." 
+                    className="flex-1 w-full p-5 rounded-2xl border border-white/5 bg-[#1A1F2E]/50 backdrop-blur-md text-[#F7F9FC] placeholder:text-[#94A3B8] focus:bg-[#1A1F2E]/80 focus:ring-2 focus:ring-[#2F6FED]/50 outline-none transition-all text-sm resize-none shadow-inner mb-3" 
+                  />
+                  
+                  <button 
+                    onClick={handleSaveNote} 
+                    disabled={savingNote || recruiterNote === (selectedCandidate.recruiter_notes || '')} 
+                    className="mb-6 w-full bg-[#2F6FED]/90 backdrop-blur-md border border-white/10 hover:bg-[#2563EB] text-white font-black tracking-widest py-3 rounded-xl transition-all shadow-[0_0_15px_rgba(47,111,237,0.3)] active:scale-95 disabled:opacity-50 disabled:shadow-none text-xs"
+                  >
                     {savingNote ? "SAVING..." : "SAVE NOTES"}
                   </button>
+                  
+                  <div className="space-y-3">
+                    <button 
+                      onClick={() => handleStatusChange(selectedCandidate.id, 'shortlisted')} 
+                      className="w-full bg-[#2FBF71]/10 hover:bg-[#2FBF71] text-[#2FBF71] hover:text-white border border-[#2FBF71]/30 font-black tracking-wide py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(47,191,113,0.15)] active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <span>✅</span> Move to Shortlist
+                    </button>
+                    
+                    <button 
+                      onClick={() => handleStatusChange(selectedCandidate.id, 'review')} 
+                      className="w-full bg-[#F59E0B]/10 hover:bg-[#F59E0B] text-[#F59E0B] hover:text-white border border-[#F59E0B]/30 font-black tracking-wide py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(245,158,11,0.15)] active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <span>⚠️</span> Mark for Review
+                    </button>
+                    
+                    <button 
+                      onClick={() => handleStatusChange(selectedCandidate.id, 'archived')} 
+                      className="w-full bg-[#1A1F2E]/80 hover:bg-white/10 text-[#94A3B8] hover:text-[#F7F9FC] border border-white/10 font-black tracking-wide py-3.5 rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <span>📥</span> Move to Archive
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -394,14 +590,10 @@ function HrDashboard() {
       {globalChatOpen && (
         <div className="fixed bottom-32 right-8 w-[400px] bg-[#242B3D]/70 backdrop-blur-2xl rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-white/10 overflow-hidden z-50 flex flex-col h-[600px] animate-in slide-in-from-bottom-8 duration-300">
           
-          {/* UPDATED HEADER: Removed overflow-hidden and increased z-index to 30 */}
           <div className="bg-[#1A1F2E]/60 backdrop-blur-md p-5 text-white flex flex-col border-b border-white/5 shadow-md z-30 relative">
-            
-            {/* We moved overflow-hidden to an absolute wrapper just for the glowing orb! */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-t-3xl">
               <div className="absolute top-0 right-0 w-32 h-32 bg-[#2F6FED]/20 rounded-full blur-2xl"></div>
             </div>
-
             <div className="flex justify-between items-center mb-4 relative z-10">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#2F6FED]/30 backdrop-blur-md flex items-center justify-center text-xl border border-white/10 shadow-[0_0_15px_rgba(47,111,237,0.3)]">🤖</div>
@@ -428,13 +620,26 @@ function HrDashboard() {
 
           <div className="flex-1 p-6 overflow-y-auto bg-transparent space-y-5 custom-scrollbar">
             {globalChatHistory.length === 0 ? (
-              <div className="text-center text-[#94A3B8] mt-10 px-4 animate-in zoom-in-95">
-                <div className="w-20 h-20 bg-[#242B3D]/80 backdrop-blur-md rounded-full shadow-lg border border-white/5 flex items-center justify-center text-4xl mx-auto mb-6">🔎</div>
+              <div className="text-center text-[#94A3B8] mt-6 px-2 animate-in zoom-in-95">
+                <div className="w-16 h-16 bg-[#242B3D]/80 backdrop-blur-md rounded-full shadow-lg border border-white/5 flex items-center justify-center text-3xl mx-auto mb-4">🔎</div>
                 <p className="font-black text-[#F7F9FC] text-lg mb-2 drop-shadow-sm">Query your Talent Pool</p>
-                <p className="text-sm font-medium leading-relaxed">Select a specific job role above to filter, then ask me to shortlist candidates.</p>
-                <div className="mt-8 space-y-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest mb-2">Try asking:</p>
-                  <p className="text-xs font-medium italic bg-[#242B3D]/50 backdrop-blur-md p-3 rounded-xl border border-white/5 shadow-sm cursor-pointer hover:border-[#2F6FED]/50 hover:text-[#2F6FED] transition-colors" onClick={() => setGlobalChatInput("Show me the top 3 candidates for this role")}>"Show me the top 3 candidates for this role"</p>
+                <p className="text-sm font-medium leading-relaxed mb-6">Select a job role above to filter, then click a prompt or ask me to shortlist candidates.</p>
+                
+                <div className="text-left border-t border-white/10 pt-6">
+                  <p className="text-[10px] font-black uppercase tracking-widest mb-3 text-[#94A3B8] flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2F6FED]"></span> Quick Actions
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {["Show me the top 3 candidates", "Who has the highest experience?", "Find candidates with AWS skills", "Show candidates flagged for fraud"].map((prompt, i) => (
+                      <button 
+                        key={i} 
+                        onClick={() => { setGlobalChatInput(prompt); }} 
+                        className="text-xs font-bold text-left bg-[#1A1F2E]/60 hover:bg-[#2F6FED]/20 hover:text-[#2F6FED] border border-white/5 hover:border-[#2F6FED]/30 transition-all px-4 py-2.5 rounded-xl text-[#F7F9FC] shadow-sm backdrop-blur-md"
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (

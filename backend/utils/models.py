@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean # <-- Added Boolean
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func  # <-- DON'T FORGET THIS LINE!
+from sqlalchemy.sql import func
 from datetime import datetime
 from .database import Base
 
@@ -29,19 +29,21 @@ class Candidate(Base):
     semantic_score = Column(Float)
     lexical_score = Column(Float)
     
-    # Store skills as comma-separated strings for simplicity
     matched_skills = Column(String)
     missing_skills = Column(String)
     
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # Link back to the Job Description
     job = relationship("JobDescription", back_populates="candidates")
-    # Add these two lines inside your Candidate class:
+    
     total_yoe = Column(Float, default=0.0)
     highest_education = Column(String, default="Unknown")
 
-    # Add this to the bottom of backend/utils/models.py
+    # --- ADD THESE 3 NEW COLUMNS ---
+    pipeline_status = Column(String, nullable=True)
+    is_human_overridden = Column(Boolean, default=False)
+    recruiter_notes = Column(String, nullable=True)
+
 
 class User(Base):
     __tablename__ = "users"
@@ -49,7 +51,5 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
-    
-    # We add a role just in case you want to separate 'admin' and 'recruiter' later
     role = Column(String, default="recruiter") 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
