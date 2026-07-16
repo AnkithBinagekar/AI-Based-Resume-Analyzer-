@@ -185,7 +185,7 @@ function LandingPage() {
             <div className="bg-gradient-to-b from-[#242B3D]/60 to-[#1A1F2E]/40 backdrop-blur-xl p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/30 hover:shadow-[0_0_30px_rgba(47,111,237,0.15)] transition-all shadow-lg">
               <div className="w-10 h-10 rounded-full bg-[#2F6FED]/20 backdrop-blur-md border border-[#2F6FED]/30 flex items-center justify-center text-[#2F6FED] mb-6 drop-shadow-md"><Bot className="w-5 h-5" /></div>
               <h3 className="text-lg font-black text-[#F7F9FC] mb-3 drop-shadow-sm">Recruiter Copilot</h3>
-              <p className="text-sm text-[#94A3B8] font-medium leading-relaxed">Retrieval-Augmented candidate querying using vector search and grounded AI responses.</p>
+              <p className="text-sm text-[#94A3B8] font-medium leading-relaxed">Instantly query candidate profiles and exact experience using natural language.</p>
             </div>
             <div className="bg-gradient-to-b from-[#242B3D]/60 to-[#1A1F2E]/40 backdrop-blur-xl p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/30 hover:shadow-[0_0_30px_rgba(47,111,237,0.15)] transition-all shadow-lg">
               <div className="w-10 h-10 rounded-full bg-[#2F6FED]/20 backdrop-blur-md border border-[#2F6FED]/30 flex items-center justify-center text-[#2F6FED] mb-6 drop-shadow-md"><Eye className="w-5 h-5" /></div>

@@ -88,6 +88,11 @@ function CandidateDashboard() {
   const [chatHistory, setChatHistory] = useState([]);
   const [chatQuestion, setChatQuestion] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory]);
   
   const [resultTab, setResultTab] = useState('overview');
   const [autoRedirect, setAutoRedirect] = useState(false);
@@ -165,7 +170,7 @@ function CandidateDashboard() {
 
     try {
       const endpoint = uploadMode === 'single' ? `${API_BASE_URL}/analyze` : `${API_BASE_URL}/analyze-bulk`;
-      const response = await axios.post(endpoint, formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 15000 });
+      const response = await axios.post(endpoint, formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
       
       if (uploadMode === 'single') {
         setSingleResults(response.data.data); 
@@ -192,9 +197,9 @@ function CandidateDashboard() {
     setTailorLoading(true); setTailorData(null); 
     const formData = new FormData(); formData.append('resume_file', file); formData.append('job_description', singleResults?.cleaned_jd || jd); 
     try { 
-      const response = await axios.post(`${API_BASE_URL}/tailor`, formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 15000 }); 
+      const response = await axios.post(`${API_BASE_URL}/tailor`, formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 }); 
       if (response.data.tailored_resume && response.data.tailored_resume.includes("DOMAIN_MISMATCH_ERROR")) {
-        alert("Ethical AI Block: The system cannot tailor this resume. The candidate's background is fundamentally unrelated to the target role. Fabricating entirely new career experience is prohibited.");
+        alert("Optimization Unavailable: The candidate's core experience does not align with the target role. The system cannot generate a tailored profile without introducing unsupported skills.");
         setTailorLoading(false);
         return;
       }
@@ -215,7 +220,7 @@ function CandidateDashboard() {
     setCoverLetterLoading(true); setCoverLetterText(''); 
     const formData = new FormData(); formData.append('resume_file', file); formData.append('job_description', singleResults?.cleaned_jd || jd); 
     try { 
-      const response = await axios.post(`${API_BASE_URL}/generate-cover-letter`, formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 15000 }); 
+      const response = await axios.post(`${API_BASE_URL}/generate-cover-letter`, formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 }); 
       setCoverLetterText(response.data.cover_letter); 
     } catch (err) { 
       if (err.code === 'ECONNABORTED') alert("AI request timed out. Please try again.");
@@ -232,10 +237,10 @@ function CandidateDashboard() {
     setChatQuestion(''); setChatLoading(true); 
     const formData = new FormData(); formData.append('resume_file', file); formData.append('question', newQuestion); 
     try { 
-      const response = await axios.post(`${API_BASE_URL}/chat-resume`, formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 15000 }); 
-      setChatHistory(prev => [...prev, { role: 'ai', content: String(response?.data?.answer || "Sorry, I received an empty response from the database.") }]); 
+      const response = await axios.post(`${API_BASE_URL}/chat-resume`, formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 }); 
+      setChatHistory(prev => [...prev, { role: 'ai', content: String(response?.data?.answer || "No relevant information was found in the candidate's profile for this query.") }]); 
     } catch (err) { 
-      const errorMsg = err.code === 'ECONNABORTED' ? "AI request timed out. Please try again." : (err.response?.status === 429 ? "AI rate limit reached. Please wait about one minute before trying again." : "Failed to reach AI backend.");
+      const errorMsg = err.code === 'ECONNABORTED' ? "AI request timed out. Please try again." : (err.response?.status === 429 ? "AI rate limit reached. Please wait about one minute before trying again." : "Service temporarily unavailable. Please try again.");
       setChatHistory(prev => [...prev, { role: 'ai', content: errorMsg }]); 
     } finally { setChatLoading(false); } 
   };
@@ -250,7 +255,7 @@ function CandidateDashboard() {
 
     if (skills >= 0.7) strengths.push("Strong technical tool and skill alignment.");
     if (semantic >= 0.6) strengths.push("High contextual experience for this role.");
-    if (lexical < 0.2 && semantic > 0.5) strengths.push("Authentic phrasing (Excellent vocabulary variance).");
+    if (lexical < 0.2 && semantic > 0.5) strengths.push("Natural phrasing (High semantic authenticity).");
     if (results.yoe >= 3) strengths.push(`${results.yoe} years experience aligns well.`);
 
     const missingSkills = results.skill_analysis?.jd_skills_detected?.filter(s => !results.skill_analysis?.common_skills?.includes(s)) || [];
@@ -269,11 +274,11 @@ function CandidateDashboard() {
 
   // Placeholder for downloading original file - would connect to real file download logic
   const handleDownloadOriginal = () => {
-    alert("Triggering download of the original Source Document.");
+    alert("Preparing secure document download...");
   };
 
   const missingSkills = singleResults?.skill_analysis?.jd_skills_detected ? singleResults.skill_analysis.jd_skills_detected.filter(skill => !singleResults.skill_analysis.common_skills?.includes(skill)) : [];
-  const innerTabStyle = (isActive) => `flex-1 py-3 px-4 text-sm font-bold rounded-xl transition-all whitespace-nowrap text-center backdrop-blur-md flex items-center justify-center gap-2 ${isActive ? 'bg-[#1A1F2E]/60 text-[#2F6FED] shadow-sm border border-white/10' : 'text-[#94A3B8] hover:text-[#F7F9FC] hover:bg-[#374151]/30 border border-transparent'}`;
+  const innerTabStyle = (isActive) => `flex-1 py-3 px-4 text-sm font-bold rounded-xl transition-all duration-300 ease-out whitespace-nowrap text-center backdrop-blur-md flex items-center justify-center gap-2 ${isActive ? 'bg-[#1A1F2E]/60 text-[#2F6FED] shadow-sm border border-white/10' : 'text-[#94A3B8] hover:text-[#F7F9FC] hover:bg-[#374151]/30 border border-transparent'}`;
   
   const bulkAvgMatch = bulkResults && bulkResults.length > 0 ? (bulkResults.reduce((sum, c) => sum + c.score, 0) / bulkResults.length).toFixed(1) : 0;
   const bulkFraudCount = bulkResults ? bulkResults.filter(c => c.filename.includes('[FRAUD]')).length : 0;
@@ -319,7 +324,7 @@ function CandidateDashboard() {
                     </div>
                   </div>
 
-                  <div {...getRootProps()} className={`relative group flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-2xl cursor-pointer transition-all backdrop-blur-md ${isDragActive ? 'border-[#2F6FED] bg-[#2F6FED]/20' : 'border-white/10 bg-[#1A1F2E]/40 hover:border-[#2F6FED]/50 hover:bg-[#2F6FED]/10'}`}>
+                  <div {...getRootProps()} className={`relative group flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300 ease-out backdrop-blur-md ${isDragActive ? 'border-[#2F6FED] bg-[#2F6FED]/20 scale-[1.02] shadow-[0_0_30px_rgba(47,111,237,0.15)]' : 'border-white/10 bg-[#1A1F2E]/40 hover:border-[#2F6FED]/50 hover:bg-[#2F6FED]/10'}`}>
                     <input {...getInputProps()} />
                     {file ? (
                       <div className="flex items-center gap-4 w-full animate-in fade-in zoom-in duration-300">
@@ -354,7 +359,7 @@ function CandidateDashboard() {
                       <CustomDropdown value={selectedSavedJobId} onChange={setSelectedSavedJobId} options={dbJobs.map(job => ({ value: job.id, label: job.title }))} placeholder="Select a target role..." />
                     </div>
                   ) : jdMode === 'text' ? (
-                    <textarea rows="4" placeholder="Paste the target JD..." value={jd} onChange={(e) => setJd(e.target.value)} className="w-full px-4 py-3.5 rounded-xl border border-white/5 bg-[#1A1F2E]/60 backdrop-blur-md text-[#F7F9FC] placeholder:text-[#94A3B8] focus:bg-[#1A1F2E]/80 focus:ring-2 focus:ring-[#2F6FED]/50 outline-none transition-all text-sm custom-scrollbar shadow-inner" />
+                    <textarea rows="4" placeholder="Paste the target JD..." value={jd} onChange={(e) => setJd(e.target.value)} className="w-full px-4 py-3.5 rounded-xl border border-white/5 bg-[#1A1F2E]/60 backdrop-blur-md text-[#F7F9FC] placeholder:text-[#94A3B8] focus:bg-[#1A1F2E]/80 focus:border-[#2F6FED]/50 focus:ring-2 focus:ring-[#2F6FED]/50 outline-none transition-all duration-300 ease-out text-sm custom-scrollbar shadow-inner" />
                   ) : (
                     <div {...getJdRootProps()} className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-2xl cursor-pointer transition-all backdrop-blur-md ${isJdDragActive ? 'border-[#2F6FED] bg-[#2F6FED]/20' : 'border-white/10 bg-[#1A1F2E]/40 hover:border-[#2F6FED]/50 hover:bg-[#2F6FED]/10'}`}>
                       <input {...getJdInputProps()} />
@@ -385,8 +390,8 @@ function CandidateDashboard() {
                     </div>
                   </div>
                 )}
-
-                <button type="submit" disabled={loading} className="w-full bg-[#2F6FED]/90 backdrop-blur-md hover:bg-[#2563EB] text-white font-black py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(47,111,237,0.3)] border border-white/10 active:scale-[0.98] disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2 tracking-wide">
+<button type="submit" disabled={loading} className="w-full bg-[#2F6FED]/90 backdrop-blur-md hover:bg-[#2563EB] text-white font-bold py-4 rounded-xl transition-all duration-300 ease-out shadow-[0_0_20px_rgba(47,111,237,0.3)] hover:shadow-[0_0_30px_rgba(47,111,237,0.5)] border border-white/10 active:scale-[0.98] disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2 tracking-wide">
+                
                   {loading ? <><span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> {loadingText}</> : "INITIATE SCAN"}
                 </button>
               </form>
@@ -487,8 +492,8 @@ function CandidateDashboard() {
                           { label: 'Experience', value: `${singleResults.yoe || 0} Yrs`, color: '#94A3B8' },
                           { label: 'Education', value: singleResults.education || "Unknown", color: '#94A3B8', truncate: true },
                         ].map((item, idx) => (
-                          <div key={idx} className={`p-5 rounded-2xl border text-center transition-transform hover:scale-105 shadow-sm bg-[#1A1F2E]/50 backdrop-blur-md border-white/5 print:bg-gray-50 print:border-gray-200 print:shadow-none`}>
-                            <h4 className={`text-[10px] font-black uppercase mb-2 tracking-widest print:text-gray-500`} style={{color: item.color}}>{item.label}</h4>
+                          <div key={idx} className={`p-5 rounded-2xl border text-center transition-all duration-300 ease-out hover:-translate-y-1 hover:border-white/20 hover:shadow-lg shadow-sm bg-[#1A1F2E]/50 backdrop-blur-md border-white/5 print:bg-gray-50 print:border-gray-200 print:shadow-none`}>
+                            <h4 className={`text-[10px] font-bold uppercase mb-2 tracking-widest print:text-gray-500`} style={{color: item.color}}>{item.label}</h4>
                             <p className={`font-black drop-shadow-sm print:drop-shadow-none print:text-black ${item.truncate ? 'line-clamp-3 text-[11px] leading-snug text-[#F7F9FC]' : 'text-2xl text-[#F7F9FC]'}`} title={item.value}>{item.value}</p>
                           </div>
                         ))}
@@ -508,7 +513,7 @@ function CandidateDashboard() {
                             <ul className="space-y-3">
                               {getCandidateInsights(singleResults).strengths.map((str, idx) => (
                                 <li key={idx} className="text-sm text-[#F7F9FC] print:text-gray-800 flex items-start gap-2">
-                                  <span className="text-[#2FBF71] mt-0.5">•</span> <span>{str}</span>
+                                  <span className="text-[#2FBF71] mt-0.5 shrink-0">•</span> <span>{str}</span>
                                 </li>
                               ))}
                             </ul>
@@ -521,7 +526,7 @@ function CandidateDashboard() {
                             <ul className="space-y-3">
                               {getCandidateInsights(singleResults).concerns.map((con, idx) => (
                                 <li key={idx} className="text-sm text-[#F7F9FC] print:text-gray-800 flex items-start gap-2">
-                                  <span className="text-[#E85D75] mt-0.5">•</span> <span>{con}</span>
+                                  <span className="text-[#E85D75] mt-0.5 shrink-0">•</span> <span>{con}</span>
                                 </li>
                               ))}
                               {getCandidateInsights(singleResults).concerns.length === 0 && (
@@ -572,16 +577,16 @@ function CandidateDashboard() {
                          <h4 className="text-xs font-black uppercase text-[#94A3B8] tracking-widest mb-6 flex items-center gap-2"><Target className="w-4 h-4"/> Live AI Reasoning & Fraud Analysis</h4>
                          <ul className="space-y-4">
                            {getCandidateInsights(singleResults).strengths.map((reason, idx) => (
-                             <li key={`str-${idx}`} className="flex items-start gap-4 text-sm font-medium p-5 rounded-xl bg-[#1A1F2E]/80 backdrop-blur-md border border-white/5 shadow-inner">
-                               <CheckCircle className="w-5 h-5 text-[#2FBF71] shrink-0" />
+                             <li key={`str-${idx}`} className="flex items-start gap-4 text-sm font-medium p-5 rounded-xl bg-[#1A1F2E]/80 backdrop-blur-md border border-white/5 shadow-inner transition-colors duration-300 hover:border-[#2FBF71]/30 hover:bg-[#1A1F2E]">
+                               <CheckCircle className="w-5 h-5 text-[#2FBF71] shrink-0 mt-0.5" />
                                <span className="text-[#2FBF71] drop-shadow-sm leading-relaxed">{reason}</span>
                              </li>
                            ))}
                            {getCandidateInsights(singleResults).concerns.map((reason, idx) => {
                              const isDanger = reason.includes("Risk") || reason.includes("manipulation") || reason.includes("Stuffing");
                              return (
-                               <li key={`con-${idx}`} className="flex items-start gap-4 text-sm font-medium p-5 rounded-xl bg-[#1A1F2E]/80 backdrop-blur-md border border-white/5 shadow-inner">
-                                 <AlertTriangle className={`w-5 h-5 shrink-0 ${isDanger ? "text-[#E85D75] animate-pulse" : "text-[#F59E0B]"}`} />
+                               <li key={`con-${idx}`} className="flex items-start gap-4 text-sm font-medium p-5 rounded-xl bg-[#1A1F2E]/80 backdrop-blur-md border border-white/5 shadow-inner transition-colors duration-300 hover:border-[#F59E0B]/30 hover:bg-[#1A1F2E]">
+                                 <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${isDanger ? "text-[#E85D75] animate-pulse" : "text-[#F59E0B]"}`} />
                                  <span className={`drop-shadow-sm leading-relaxed ${isDanger ? 'text-[#E85D75] font-bold' : 'text-[#F59E0B]'}`}>{reason}</span>
                                </li>
                              );
@@ -593,7 +598,7 @@ function CandidateDashboard() {
 
                  {resultTab === 'coach' && (
                     <div className="bg-transparent p-2">
-                      <div className="prose prose-invert max-w-none prose-h3:text-[#F7F9FC] prose-strong:text-[#2F6FED] prose-a:text-[#2F6FED] prose-p:font-medium prose-p:text-[#94A3B8] drop-shadow-sm" dangerouslySetInnerHTML={{ __html: singleResults.ai_feedback }} />
+                      <div className="prose prose-invert max-w-none prose-h3:text-[#F7F9FC] prose-strong:text-[#2F6FED] prose-a:text-[#2F6FED] prose-p:font-medium prose-p:text-[#94A3B8] drop-shadow-sm prose-p:leading-relaxed prose-p:my-2 prose-li:my-1 prose-ul:my-2 prose-li:marker:text-[#2F6FED]" dangerouslySetInnerHTML={{ __html: singleResults.ai_feedback }} />
                     </div>
                   )}
 
@@ -603,7 +608,7 @@ function CandidateDashboard() {
                         <div className="text-center bg-[#1A1F2E]/50 backdrop-blur-md rounded-3xl border border-white/5 p-16 shadow-inner">
                           <Wand2 className="w-16 h-16 mx-auto mb-6 text-[#2F6FED] opacity-80" />
                           <h3 className="text-2xl font-black text-[#F7F9FC] mb-3 drop-shadow-sm">AI Resume Optimization</h3>
-                          <p className="text-base font-medium text-[#94A3B8] mb-10 max-w-lg mx-auto">Generate an ATS-friendly, keyword-optimized version of this candidate's resume and re-evaluate it through our Random Forest model.</p>
+                          <p className="text-base font-medium text-[#94A3B8] mb-10 max-w-lg mx-auto">Generate an ATS-friendly, keyword-optimized version of this candidate's resume and instantly re-score it against the job requirements.</p>
                           <button onClick={handleTailor} disabled={tailorLoading} className="bg-[#2F6FED]/90 backdrop-blur-md border border-white/10 hover:bg-[#2563EB] text-white font-bold py-4 px-10 rounded-xl transition-all shadow-[0_0_20px_rgba(47,111,237,0.4)] active:scale-95 disabled:opacity-70 disabled:shadow-none tracking-wide">
                             {tailorLoading ? 'GENERATING & RE-SCORING...' : 'OPTIMIZE & RE-SCORE'}
                           </button>
@@ -797,7 +802,7 @@ function CandidateDashboard() {
                           </button>
                         </div>
                       ) : (
-                        <div className="text-left bg-[#242B3D]/40 backdrop-blur-xl p-10 rounded-3xl border border-white/5 shadow-lg prose prose-invert max-w-none prose-p:font-medium prose-p:text-[#94A3B8]">
+                        <div className="text-left bg-[#242B3D]/40 backdrop-blur-xl p-10 rounded-3xl border border-white/5 shadow-lg prose prose-invert max-w-none prose-p:font-medium prose-p:text-[#94A3B8] prose-p:leading-relaxed prose-p:my-2 prose-li:my-1 prose-ul:my-2 prose-li:marker:text-[#2F6FED]">
                           <ReactMarkdown>{coverLetterText}</ReactMarkdown>
                         </div>
                       )}
@@ -836,7 +841,7 @@ function CandidateDashboard() {
                         ) : (
                           chatHistory.map((msg, idx) => (
                              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
-                              <div className={`max-w-[85%] px-5 py-4 rounded-2xl text-sm shadow-[0_4px_20px_rgba(0,0,0,0.2)] prose prose-sm prose-invert prose-p:leading-relaxed prose-li:my-0 backdrop-blur-md border border-white/5 ${msg.role === 'user' ? 'bg-[#2F6FED]/90 text-white rounded-br-sm font-medium' : 'bg-[#242B3D]/80 text-[#F7F9FC] rounded-bl-sm'}`}>
+                              <div className={`max-w-[85%] px-5 py-4 rounded-2xl text-sm shadow-[0_4px_20px_rgba(0,0,0,0.2)] prose prose-sm prose-invert prose-p:leading-relaxed prose-li:my-0 prose-p:my-2 prose-li:my-1 prose-ul:my-2 prose-li:marker:text-[#2F6FED] backdrop-blur-md border border-white/5 ${msg.role === 'user' ? 'bg-[#2F6FED]/90 text-white rounded-br-sm font-medium' : 'bg-[#242B3D]/80 text-[#F7F9FC] rounded-bl-sm'}`}>
                                 {msg.role === 'ai' ? <ReactMarkdown>{String(msg.content || "")}</ReactMarkdown> : String(msg.content || "")}
                               </div>
                             </div>
@@ -851,6 +856,7 @@ function CandidateDashboard() {
                              </div>
                           </div>
                         )}
+                        <div ref={chatEndRef} />
                       </div>
                       
                       <form onSubmit={handleChat} className="p-5 bg-[#242B3D]/60 backdrop-blur-md border-t border-white/5 flex gap-3">
@@ -974,8 +980,8 @@ function CandidateDashboard() {
                  <button onClick={handleDownloadTailoredResume} className="text-xs font-bold bg-[#2FBF71]/20 text-[#2FBF71] border border-[#2FBF71]/30 px-4 py-2 rounded-lg hover:bg-[#2FBF71] hover:text-white transition-colors shadow-sm flex items-center gap-2">
                    <Download className="w-4 h-4"/> Download PDF
                  </button>
-                 <button onClick={() => setShowTailoredPreview(false)} className="w-8 h-8 bg-[#1A1F2E]/50 hover:bg-white/10 text-[#94A3B8] hover:text-[#F7F9FC] rounded-full flex items-center justify-center transition-colors font-bold border border-white/5 backdrop-blur-md">
-                   <X className="w-4 h-4" />
+                 <button onClick={() => setShowTailoredPreview(false)} className="w-10 h-10 bg-[#1A1F2E]/50 hover:bg-white/10 text-[#94A3B8] hover:text-[#F7F9FC] rounded-full flex items-center justify-center transition-colors font-bold border border-white/5 backdrop-blur-md">
+                   <X className="w-5 h-5" />
                  </button>
               </div>
             </div>

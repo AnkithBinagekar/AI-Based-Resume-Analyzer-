@@ -180,10 +180,10 @@ function JobBoard() {
           <div className="lg:col-span-8 z-10">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {jobs.length === 0 ? (
-                <div className="col-span-full bg-[#242B3D]/30 backdrop-blur-2xl rounded-3xl shadow-lg border border-white/5 p-16 text-center animate-in fade-in">
-                  <Inbox className="w-12 h-12 mx-auto mb-4 drop-shadow-md text-[#94A3B8]" />
-                  <h3 className="text-xl font-black text-[#F7F9FC] mb-2">No Active Roles</h3>
-                  <p className="text-[#94A3B8] text-sm font-medium">Create a new job description to start scanning candidates.</p>
+                <div className="col-span-full bg-[#242B3D]/40 backdrop-blur-3xl rounded-3xl shadow-2xl border border-white/10 p-24 text-center animate-in fade-in zoom-in-95">
+                  <Inbox className="w-20 h-20 mx-auto mb-8 drop-shadow-md text-[#94A3B8]" />
+                  <h3 className="text-3xl font-black text-[#F7F9FC] mb-3">No Active Roles</h3>
+                  <p className="text-[#94A3B8] mb-10 text-lg font-medium">Create a new job description to start scanning candidates.</p>
                 </div>
               ) : (
                 jobs.map((job) => (

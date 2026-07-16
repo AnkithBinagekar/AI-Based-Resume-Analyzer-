@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import XAIDial from '../components/XAIDial';
@@ -53,6 +53,11 @@ function HrDashboard() {
   const [globalChatHistory, setGlobalChatHistory] = useState([]);
   const [globalChatInput, setGlobalChatInput] = useState('');
   const [globalChatLoading, setGlobalChatLoading] = useState(false);
+  const globalChatEndRef = useRef(null);
+
+  useEffect(() => {
+    globalChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [globalChatHistory]);
   
   const [dbJobs, setDbJobs] = useState([]);
   const [chatJobId, setChatJobId] = useState(''); 
@@ -239,7 +244,7 @@ function HrDashboard() {
       : (parseFloat(candidate.skill_overlap_score || 0) >= 0.5 ? 'Tech Verified' : 'Review Skills');
 
     return (
-      <div draggable onDragStart={(e) => handleDragStart(e, candidate.id)} onClick={() => openDeepDive(candidate)} className={`bg-[#242B3D]/60 backdrop-blur-xl p-5 rounded-2xl shadow-lg border hover:-translate-y-1 transition-all duration-300 cursor-grab active:cursor-grabbing relative overflow-hidden group ${candidate.is_human_overridden ? 'border-[#2F6FED] ring-2 ring-[#2F6FED]/30' : 'border-white/10 hover:border-[#2F6FED]/60 hover:shadow-[0_0_20px_rgba(47,111,237,0.25)]'}`}>
+      <div draggable onDragStart={(e) => handleDragStart(e, candidate.id)} onClick={() => openDeepDive(candidate)} className={`bg-[#242B3D]/60 backdrop-blur-xl p-5 rounded-2xl shadow-lg border hover:-translate-y-1 transition-all duration-300 ease-out cursor-grab active:cursor-grabbing relative overflow-hidden group ${candidate.is_human_overridden ? 'border-[#2F6FED] ring-2 ring-[#2F6FED]/30' : 'border-white/10 hover:border-[#2F6FED]/60 hover:shadow-[0_0_20px_rgba(47,111,237,0.25)]'}`}>
         <div className="absolute top-0 right-0 w-20 h-20 bg-[#2F6FED]/10 rounded-bl-full -mr-4 -mt-4 z-0 group-hover:scale-125 transition-transform duration-500"></div>
         <div className="relative z-10 flex justify-between items-start mb-3">
           <div className="flex-1 overflow-hidden pr-3">
@@ -251,14 +256,14 @@ function HrDashboard() {
           </div>
           <span className={`px-2.5 py-1 rounded-lg text-xs font-black shadow-sm border backdrop-blur-md ${badgeColor}`}>{score.toFixed(1)}%</span>
         </div>
-        {fraudAlert && (<div className={`relative z-10 mb-3 w-full border py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 shadow-inner ${fraudColor}`}><AlertTriangle className="w-3 h-3 animate-pulse"/> <span className="text-[9px] font-black uppercase tracking-widest animate-pulse drop-shadow-sm">{fraudAlert}</span></div>)}
+        {fraudAlert && (<div className={`relative z-10 mb-3 w-full border py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 shadow-inner ${fraudColor}`}><AlertTriangle className="w-3 h-3 animate-pulse shrink-0"/> <span className="text-xs font-black uppercase tracking-widest animate-pulse drop-shadow-sm">{fraudAlert}</span></div>)}
         <div className="relative z-10 mb-4">
-           <div className="flex justify-between items-center mb-1.5"><span className="text-[9px] font-bold uppercase tracking-widest text-[#94A3B8]">Match Strength</span></div>
+           <div className="flex justify-between items-center mb-1.5"><span className="text-xs font-bold uppercase tracking-widest text-[#94A3B8]">Match Strength</span></div>
            <div className="w-full h-1.5 bg-[#1A1F2E]/80 rounded-full overflow-hidden shadow-inner border border-white/5"><div className={`h-full rounded-full ${barColor} shadow-[0_0_8px_currentColor]`} style={{ width: `${score}%` }}></div></div>
         </div>
         <div className="relative z-10 flex gap-2">
-          <div className="flex-1 bg-[#1A1F2E]/60 backdrop-blur-md p-2 rounded-lg border border-white/5 shadow-inner"><p className="text-[8px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Experience</p><p className="text-xs font-black text-[#F7F9FC]">{candidate.total_yoe || 0} Yrs</p></div>
-          <div className="flex-1 bg-[#1A1F2E]/60 backdrop-blur-md p-2 rounded-lg border border-white/5 shadow-inner overflow-hidden"><p className="text-[8px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Top Skill</p><p className="text-xs font-black text-[#2F6FED] truncate drop-shadow-sm" title={topSkill}>{topSkill}</p></div>
+          <div className="flex-1 bg-[#1A1F2E]/60 backdrop-blur-md p-2 rounded-lg border border-white/5 shadow-inner"><p className="text-[10px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Experience</p><p className="text-xs font-black text-[#F7F9FC]">{candidate.total_yoe || 0} Yrs</p></div>
+          <div className="flex-1 bg-[#1A1F2E]/60 backdrop-blur-md p-2 rounded-lg border border-white/5 shadow-inner overflow-hidden"><p className="text-[10px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Top Skill</p><p className="text-xs font-black text-[#2F6FED] truncate drop-shadow-sm" title={topSkill}>{topSkill}</p></div>
           {candidate.is_human_overridden && (<div className="flex items-center justify-center bg-[#2F6FED]/20 border border-[#2F6FED]/30 px-2.5 rounded-lg shadow-sm" title="Human Overridden"><Hand className="w-4 h-4 text-[#2F6FED]"/></div>)}
         </div>
       </div>
@@ -293,22 +298,22 @@ function HrDashboard() {
 
         {!loading && candidates.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
-            <div className="bg-[#242B3D]/40 backdrop-blur-2xl p-6 rounded-2xl border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.2)] flex items-center gap-5 relative overflow-hidden">
+            <div className="bg-[#242B3D]/40 backdrop-blur-2xl p-6 rounded-3xl border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.2)] flex items-center gap-5 relative overflow-hidden">
               <div className="w-14 h-14 rounded-xl bg-[#2F6FED]/20 backdrop-blur-md text-[#2F6FED] border border-[#2F6FED]/30 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(47,111,237,0.2)] relative z-10"><Users className="w-6 h-6"/></div>
               <div className="relative z-10"><p className="text-[10px] font-black uppercase text-[#94A3B8] tracking-widest mb-1">Total Scans</p><p className="text-3xl font-black text-[#F7F9FC] drop-shadow-sm">{candidates.length}</p></div>
             </div>
             
-            <div className="bg-[#242B3D]/40 backdrop-blur-2xl p-6 rounded-2xl border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.2)] flex items-center gap-5 relative overflow-hidden">
+            <div className="bg-[#242B3D]/40 backdrop-blur-2xl p-6 rounded-3xl border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.2)] flex items-center gap-5 relative overflow-hidden">
               <div className="w-14 h-14 rounded-xl bg-[#2FBF71]/20 backdrop-blur-md text-[#2FBF71] border border-[#2FBF71]/30 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(47,191,113,0.2)] relative z-10"><BarChart2 className="w-6 h-6"/></div>
               <div className="relative z-10"><p className="text-[10px] font-black uppercase text-[#94A3B8] tracking-widest mb-1">Avg Match</p><p className="text-3xl font-black text-[#F7F9FC] drop-shadow-sm">{avgMatch}%</p></div>
             </div>
             
-            <div className="bg-[#242B3D]/40 backdrop-blur-2xl p-6 rounded-2xl border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.2)] flex items-center gap-5 relative overflow-hidden">
+            <div className="bg-[#242B3D]/40 backdrop-blur-2xl p-6 rounded-3xl border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.2)] flex items-center gap-5 relative overflow-hidden">
               <div className="w-14 h-14 rounded-xl bg-[#E85D75]/20 backdrop-blur-md text-[#E85D75] border border-[#E85D75]/30 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(232,93,117,0.2)] relative z-10 animate-pulse"><AlertTriangle className="w-6 h-6"/></div>
               <div className="relative z-10"><p className="text-[10px] font-black uppercase text-[#94A3B8] tracking-widest mb-1">Fraud Alerts</p><p className="text-3xl font-black text-[#F7F9FC] drop-shadow-sm">{fraudCount}</p></div>
             </div>
             
-            <div className="bg-[#242B3D]/40 backdrop-blur-2xl p-6 rounded-2xl border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.2)] flex items-center gap-5 relative overflow-hidden">
+            <div className="bg-[#242B3D]/40 backdrop-blur-2xl p-6 rounded-3xl border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.2)] flex items-center gap-5 relative overflow-hidden">
               <div className="w-14 h-14 rounded-xl bg-[#F59E0B]/20 backdrop-blur-md text-[#F59E0B] border border-[#F59E0B]/30 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(245,158,11,0.2)] relative z-10"><Target className="w-6 h-6"/></div>
               <div className="overflow-hidden relative z-10"><p className="text-[10px] font-black uppercase text-[#94A3B8] tracking-widest mb-1">Top Missing Skill</p><p className="text-lg font-black text-[#F7F9FC] truncate drop-shadow-sm" title={topSkill}>{topSkill}</p></div>
             </div>
@@ -412,7 +417,7 @@ function HrDashboard() {
                         </div>
 
                         <div className="col-span-3 md:col-span-2 flex items-center">
-                          <span className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black shadow-sm border backdrop-blur-md flex items-center gap-1 ${statusColor}`}>
+                          <span className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black shadow-sm border backdrop-blur-md flex items-center gap-1 ${statusColor}`}>
                             {statusText} {candidate.is_human_overridden && <Hand className="w-3 h-3 ml-1"/>}
                           </span>
                         </div>
@@ -428,11 +433,11 @@ function HrDashboard() {
 
                         <div className="hidden md:flex md:col-span-3 gap-2">
                           <div className="flex-1 bg-[#1A1F2E]/60 p-2 rounded-lg border border-white/5 shadow-inner">
-                            <p className="text-[8px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Experience</p>
+                            <p className="text-[10px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Experience</p>
                             <p className="text-xs font-black text-[#F7F9FC]">{candidate.total_yoe || 0} Yrs</p>
                           </div>
                           <div className="flex-1 bg-[#1A1F2E]/60 p-2 rounded-lg border border-white/5 shadow-inner overflow-hidden">
-                            <p className="text-[8px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Top Skill</p>
+                            <p className="text-[10px] text-[#94A3B8] font-bold uppercase tracking-wider mb-0.5">Top Skill</p>
                             <p className="text-xs font-black text-[#2F6FED] truncate">{topSkill}</p>
                           </div>
                         </div>
@@ -471,8 +476,8 @@ function HrDashboard() {
               <button onClick={() => setSelectedCandidate(null)} className="w-10 h-10 bg-[#1A1F2E]/50 hover:bg-white/10 text-[#94A3B8] hover:text-[#F7F9FC] rounded-full flex items-center justify-center transition-colors font-bold border border-white/5 backdrop-blur-md"><X className="w-5 h-5"/></button>
             </div>
 
-            <div className="overflow-y-auto flex-1 custom-scrollbar bg-transparent flex flex-col md:flex-row">
-              <div className="p-8 flex-1 border-r border-white/5">
+            <div className="flex-1 bg-transparent flex flex-col md:flex-row overflow-hidden">
+              <div className="p-8 flex-1 border-r border-white/5 overflow-y-auto custom-scrollbar">
                 
                 <div className="grid grid-cols-2 gap-6 mb-8">
                   <div className="bg-[#242B3D]/50 backdrop-blur-md p-6 rounded-2xl border border-white/5 shadow-lg text-center">
@@ -500,7 +505,7 @@ function HrDashboard() {
                     <ul className="space-y-3">
                       {getCandidateInsights(selectedCandidate).strengths.map((str, idx) => (
                         <li key={idx} className="text-sm text-[#F7F9FC] flex items-start gap-2">
-                          <span className="text-[#2FBF71] mt-0.5">•</span> <span>{str}</span>
+                          <span className="text-[#2FBF71] mt-0.5 shrink-0">•</span> <span>{str}</span>
                         </li>
                       ))}
                     </ul>
@@ -513,7 +518,7 @@ function HrDashboard() {
                     <ul className="space-y-3">
                       {getCandidateInsights(selectedCandidate).concerns.map((con, idx) => (
                         <li key={idx} className="text-sm text-[#F7F9FC] flex items-start gap-2">
-                          <span className="text-[#E85D75] mt-0.5">•</span> <span>{con}</span>
+                          <span className="text-[#E85D75] mt-0.5 shrink-0">•</span> <span>{con}</span>
                         </li>
                       ))}
                       {getCandidateInsights(selectedCandidate).concerns.length === 0 && (
@@ -528,14 +533,14 @@ function HrDashboard() {
                     <h4 className="text-sm font-black uppercase text-[#8B5CF6] tracking-widest mb-6 flex items-center gap-2 drop-shadow-sm">
                       <Bot className="w-5 h-5"/> AI Generated Interview Guide
                     </h4>
-                    <div className="prose prose-sm prose-invert max-w-none prose-headings:text-[#F7F9FC] prose-p:text-[#94A3B8] prose-strong:text-[#F7F9FC] prose-li:text-[#94A3B8]">
+                    <div className="prose prose-sm prose-invert max-w-none prose-headings:text-[#F7F9FC] prose-strong:text-[#F7F9FC] prose-li:text-[#94A3B8] prose-p:leading-relaxed prose-p:text-[#94A3B8] prose-p:my-2 prose-li:my-1 prose-ul:my-2 prose-li:marker:text-[#2F6FED]">
                       <ReactMarkdown>{interviewGuide}</ReactMarkdown>
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="w-full md:w-96 bg-[#242B3D]/30 backdrop-blur-md p-8 flex flex-col border-l border-white/5">
+              <div className="w-full md:w-96 bg-[#242B3D]/30 backdrop-blur-md p-8 flex flex-col border-l border-white/5 overflow-y-auto custom-scrollbar">
                 <div className="mb-6">
                   <h3 className="text-xl font-black text-[#F7F9FC] flex items-center gap-3 drop-shadow-sm"><PenTool className="w-5 h-5"/> Human Evaluation</h3>
                   <p className="text-[#94A3B8] text-xs font-bold uppercase tracking-widest mt-2 border-l-2 border-[#2F6FED] pl-3">AI recommends. Recruiters decide.</p>
@@ -650,7 +655,7 @@ function HrDashboard() {
             ) : (
               globalChatHistory.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
-                  <div className={`max-w-[85%] px-5 py-3.5 rounded-2xl text-sm shadow-md prose prose-sm prose-p:leading-relaxed prose-li:my-0 prose-strong:text-[#F7F9FC] backdrop-blur-md border border-white/5 ${msg.role === 'user' ? 'bg-[#2F6FED]/90 text-white rounded-br-sm font-medium' : 'bg-[#242B3D]/80 text-[#F7F9FC] rounded-bl-sm prose-p:text-[#F7F9FC]'}`}>
+                  <div className={`max-w-[85%] px-5 py-3.5 rounded-2xl text-sm shadow-md prose prose-sm prose-li:my-0 prose-strong:text-[#F7F9FC] prose-p:leading-relaxed prose-p:my-2 prose-li:my-1 prose-ul:my-2 prose-li:marker:text-[#2F6FED] backdrop-blur-md border border-white/5 ${msg.role === 'user' ? 'bg-[#2F6FED]/90 text-white rounded-br-sm font-medium' : 'bg-[#242B3D]/80 text-[#F7F9FC] rounded-bl-sm prose-p:text-[#F7F9FC]'}`}>
                     {msg.role === 'ai' ? <ReactMarkdown>{String(msg.content)}</ReactMarkdown> : msg.content}
                   </div>
                 </div>
@@ -665,6 +670,7 @@ function HrDashboard() {
                  </div>
               </div>
             )}
+            <div ref={globalChatEndRef} />
           </div>
 
           <form onSubmit={handleGlobalChat} className="p-5 bg-[#1A1F2E]/60 backdrop-blur-md border-t border-white/5 flex gap-3">
