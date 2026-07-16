@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
+import { ClipboardList, Building, FileText, Inbox, X } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 
@@ -103,7 +104,7 @@ function JobBoard() {
         <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#2F6FED]/10 backdrop-blur-md border border-[#2F6FED]/30 text-[#2F6FED] text-[10px] font-black tracking-widest uppercase mb-4 shadow-sm">
-              📋 ATS Database
+              <ClipboardList className="w-3 h-3" /> ATS Database
             </div>
             <h2 className="text-4xl font-black text-[#F7F9FC] tracking-tight drop-shadow-sm">Active Roles</h2>
             <p className="text-[#94A3B8] font-medium mt-2">Manage job requisitions and initiate candidate scans.</p>
@@ -153,15 +154,15 @@ function JobBoard() {
                       <input {...getInputProps()} />
                       {jdFile ? (
                         <div className="flex items-center gap-3 w-full animate-in fade-in zoom-in duration-300">
-                          <span className="text-2xl drop-shadow-md">🏢</span>
+                          <Building className="w-6 h-6 drop-shadow-md" />
                           <div className="flex-1 overflow-hidden">
                             <p className="text-sm font-bold text-[#F7F9FC] truncate drop-shadow-sm">{jdFile.name}</p>
                           </div>
-                          <button type="button" className="w-8 h-8 flex items-center justify-center bg-[#E85D75]/20 hover:bg-[#E85D75]/40 rounded-full text-[#E85D75] transition-colors border border-[#E85D75]/30" onClick={(e) => { e.stopPropagation(); setJdFile(null); }}>✕</button>
+                          <button type="button" className="w-8 h-8 flex items-center justify-center bg-[#E85D75]/20 hover:bg-[#E85D75]/40 rounded-full text-[#E85D75] transition-colors border border-[#E85D75]/30" onClick={(e) => { e.stopPropagation(); setJdFile(null); }}><X className="w-4 h-4" /></button>
                         </div>
                       ) : (
                         <div className="text-center">
-                          <span className="text-2xl mb-2 block group-hover:scale-110 transition-transform drop-shadow-lg">📄</span>
+                          <FileText className="w-8 h-8 mb-2 mx-auto text-[#94A3B8] group-hover:scale-110 transition-transform drop-shadow-lg" />
                           <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Drop .PDF or .PNG</p>
                         </div>
                       )}
@@ -180,7 +181,7 @@ function JobBoard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {jobs.length === 0 ? (
                 <div className="col-span-full bg-[#242B3D]/30 backdrop-blur-2xl rounded-3xl shadow-lg border border-white/5 p-16 text-center animate-in fade-in">
-                  <div className="text-5xl mb-4 drop-shadow-md">📭</div>
+                  <Inbox className="w-12 h-12 mx-auto mb-4 drop-shadow-md text-[#94A3B8]" />
                   <h3 className="text-xl font-black text-[#F7F9FC] mb-2">No Active Roles</h3>
                   <p className="text-[#94A3B8] text-sm font-medium">Create a new job description to start scanning candidates.</p>
                 </div>
@@ -195,7 +196,7 @@ function JobBoard() {
                     
                     <div className="relative z-10 flex justify-between items-start mb-4">
                        <span className="px-3 py-1 bg-[#2F6FED]/20 backdrop-blur-md text-[#2F6FED] border border-[#2F6FED]/30 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm">Job #{job.id}</span>
-                       <button onClick={(e) => handleDeleteJob(e, job.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#E85D75]/20 hover:text-[#E85D75] transition-colors">✕</button>
+                       <button onClick={(e) => handleDeleteJob(e, job.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-[#94A3B8] hover:bg-[#E85D75]/20 hover:text-[#E85D75] transition-colors"><X className="w-4 h-4" /></button>
                     </div>
                     
                     <div className="relative z-10 mb-6 flex-1">
@@ -224,7 +225,7 @@ function JobBoard() {
                 <span className="px-3 py-1.5 bg-[#2F6FED]/20 text-[#2F6FED] border border-[#2F6FED]/30 rounded-lg text-[10px] font-black uppercase tracking-widest mb-3 inline-flex shadow-sm backdrop-blur-md">Job #{viewingJob.id}</span>
                 <h2 className="text-2xl font-black text-[#F7F9FC] leading-tight drop-shadow-sm">{viewingJob.title}</h2>
               </div>
-              <button onClick={() => setViewingJob(null)} className="w-10 h-10 bg-[#1A1F2E]/50 hover:bg-white/10 text-[#94A3B8] hover:text-[#F7F9FC] rounded-full flex items-center justify-center transition-colors font-bold border border-white/5 backdrop-blur-md">✕</button>
+              <button onClick={() => setViewingJob(null)} className="w-10 h-10 bg-[#1A1F2E]/50 hover:bg-white/10 text-[#94A3B8] hover:text-[#F7F9FC] rounded-full flex items-center justify-center transition-colors font-bold border border-white/5 backdrop-blur-md"><X className="w-5 h-5" /></button>
             </div>
 
             <div className="p-8 overflow-y-auto flex-1 custom-scrollbar bg-transparent">

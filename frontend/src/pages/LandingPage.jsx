@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Zap, FileText, Brain, ShieldCheck, BarChart2, Settings, Bot, Eye } from 'lucide-react';
 
 function LandingPage() {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ function LandingPage() {
 
       <nav className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 flex justify-between items-center animate-in fade-in slide-in-from-top-4 duration-500">
         <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.scrollTo(0, 0)}>
-          <span className="text-3xl text-[#2F6FED] drop-shadow-[0_0_15px_rgba(47,111,237,0.6)] group-hover:scale-110 transition-transform">⚡</span>
+          <Zap className="w-8 h-8 text-[#2F6FED] drop-shadow-[0_0_15px_rgba(47,111,237,0.6)] group-hover:scale-110 transition-transform" />
           <span className="text-xl font-black text-[#F7F9FC] tracking-tight drop-shadow-sm">
             Intelligence<span className="text-[#94A3B8] font-medium hidden sm:inline">ATS</span>
           </span>
@@ -146,22 +147,22 @@ function LandingPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             <div className="bg-[#242B3D]/40 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/50 hover:bg-[#242B3D]/60 transition-all shadow-lg group">
-              <div className="w-12 h-12 mb-6 bg-[#1A1F2E]/80 backdrop-blur-md border border-white/10 flex items-center justify-center rounded-xl text-2xl group-hover:scale-110 transition-transform shadow-inner">📄</div>
+              <div className="w-12 h-12 mb-6 bg-[#1A1F2E]/80 backdrop-blur-md border border-white/10 flex items-center justify-center rounded-xl text-2xl group-hover:scale-110 transition-transform shadow-inner"><FileText className="w-6 h-6 text-[#94A3B8]" /></div>
               <h3 className="text-sm font-black text-[#F7F9FC] mb-2 uppercase tracking-wider drop-shadow-sm">Document Ingestion</h3>
               <p className="text-xs text-[#94A3B8] font-medium leading-relaxed">Upload resumes, bulk ZIP files, or image-based job descriptions.</p>
             </div>
             <div className="bg-[#242B3D]/40 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/50 hover:bg-[#242B3D]/60 transition-all shadow-lg group">
-              <div className="w-12 h-12 mb-6 bg-[#1A1F2E]/80 backdrop-blur-md border border-white/10 flex items-center justify-center rounded-xl text-2xl group-hover:scale-110 transition-transform shadow-inner">🧠</div>
+              <div className="w-12 h-12 mb-6 bg-[#1A1F2E]/80 backdrop-blur-md border border-white/10 flex items-center justify-center rounded-xl text-2xl group-hover:scale-110 transition-transform shadow-inner"><Brain className="w-6 h-6 text-[#94A3B8]" /></div>
               <h3 className="text-sm font-black text-[#F7F9FC] mb-2 uppercase tracking-wider drop-shadow-sm">Hybrid NLP Analysis</h3>
               <p className="text-xs text-[#94A3B8] font-medium leading-relaxed">Semantic embeddings, lexical analysis, and skill extraction.</p>
             </div>
             <div className="bg-[#242B3D]/40 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/50 hover:bg-[#242B3D]/60 transition-all shadow-lg group">
-              <div className="w-12 h-12 mb-6 bg-[#1A1F2E]/80 backdrop-blur-md border border-white/10 flex items-center justify-center rounded-xl text-2xl group-hover:scale-110 transition-transform shadow-inner">🛡️</div>
+              <div className="w-12 h-12 mb-6 bg-[#1A1F2E]/80 backdrop-blur-md border border-white/10 flex items-center justify-center rounded-xl text-2xl group-hover:scale-110 transition-transform shadow-inner"><ShieldCheck className="w-6 h-6 text-[#94A3B8]" /></div>
               <h3 className="text-sm font-black text-[#F7F9FC] mb-2 uppercase tracking-wider drop-shadow-sm">Fraud Detection</h3>
               <p className="text-xs text-[#94A3B8] font-medium leading-relaxed">Detect keyword stuffing and enable blind hiring workflows.</p>
             </div>
             <div className="bg-[#242B3D]/40 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/50 hover:bg-[#242B3D]/60 transition-all shadow-lg group">
-              <div className="w-12 h-12 mb-6 bg-[#1A1F2E]/80 backdrop-blur-md border border-white/10 flex items-center justify-center rounded-xl text-2xl group-hover:scale-110 transition-transform shadow-inner">📊</div>
+              <div className="w-12 h-12 mb-6 bg-[#1A1F2E]/80 backdrop-blur-md border border-white/10 flex items-center justify-center rounded-xl text-2xl group-hover:scale-110 transition-transform shadow-inner"><BarChart2 className="w-6 h-6 text-[#94A3B8]" /></div>
               <h3 className="text-sm font-black text-[#F7F9FC] mb-2 uppercase tracking-wider drop-shadow-sm">Decision Support</h3>
               <p className="text-xs text-[#94A3B8] font-medium leading-relaxed">AI-assisted ranking with explainable recruiter insights.</p>
             </div>
@@ -177,17 +178,17 @@ function LandingPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-gradient-to-b from-[#242B3D]/60 to-[#1A1F2E]/40 backdrop-blur-xl p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/30 hover:shadow-[0_0_30px_rgba(47,111,237,0.15)] transition-all shadow-lg">
-              <div className="w-10 h-10 rounded-full bg-[#2F6FED]/20 backdrop-blur-md border border-[#2F6FED]/30 flex items-center justify-center text-[#2F6FED] mb-6 drop-shadow-md">⚙️</div>
+              <div className="w-10 h-10 rounded-full bg-[#2F6FED]/20 backdrop-blur-md border border-[#2F6FED]/30 flex items-center justify-center text-[#2F6FED] mb-6 drop-shadow-md"><Settings className="w-5 h-5" /></div>
               <h3 className="text-lg font-black text-[#F7F9FC] mb-3 drop-shadow-sm">Hybrid ML Engine</h3>
               <p className="text-sm text-[#94A3B8] font-medium leading-relaxed">Combines semantic analysis, skill extraction, and lexical scoring through a Random Forest ensemble.</p>
             </div>
             <div className="bg-gradient-to-b from-[#242B3D]/60 to-[#1A1F2E]/40 backdrop-blur-xl p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/30 hover:shadow-[0_0_30px_rgba(47,111,237,0.15)] transition-all shadow-lg">
-              <div className="w-10 h-10 rounded-full bg-[#2F6FED]/20 backdrop-blur-md border border-[#2F6FED]/30 flex items-center justify-center text-[#2F6FED] mb-6 drop-shadow-md">🤖</div>
+              <div className="w-10 h-10 rounded-full bg-[#2F6FED]/20 backdrop-blur-md border border-[#2F6FED]/30 flex items-center justify-center text-[#2F6FED] mb-6 drop-shadow-md"><Bot className="w-5 h-5" /></div>
               <h3 className="text-lg font-black text-[#F7F9FC] mb-3 drop-shadow-sm">Recruiter Copilot</h3>
               <p className="text-sm text-[#94A3B8] font-medium leading-relaxed">Retrieval-Augmented candidate querying using vector search and grounded AI responses.</p>
             </div>
             <div className="bg-gradient-to-b from-[#242B3D]/60 to-[#1A1F2E]/40 backdrop-blur-xl p-8 rounded-3xl border border-white/5 hover:border-[#2F6FED]/30 hover:shadow-[0_0_30px_rgba(47,111,237,0.15)] transition-all shadow-lg">
-              <div className="w-10 h-10 rounded-full bg-[#2F6FED]/20 backdrop-blur-md border border-[#2F6FED]/30 flex items-center justify-center text-[#2F6FED] mb-6 drop-shadow-md">👁️‍🗨️</div>
+              <div className="w-10 h-10 rounded-full bg-[#2F6FED]/20 backdrop-blur-md border border-[#2F6FED]/30 flex items-center justify-center text-[#2F6FED] mb-6 drop-shadow-md"><Eye className="w-5 h-5" /></div>
               <h3 className="text-lg font-black text-[#F7F9FC] mb-3 drop-shadow-sm">Blind Hiring Mode</h3>
               <p className="text-sm text-[#94A3B8] font-medium leading-relaxed">Automatically removes personally identifiable information during recruiter screening.</p>
             </div>
@@ -198,7 +199,7 @@ function LandingPage() {
       <footer className="relative z-10 w-full border-t border-white/5 bg-[#1A1F2E]/80 backdrop-blur-md py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
           <div className="flex items-center gap-2">
-             <span className="text-xl text-[#2F6FED] drop-shadow-sm">⚡</span>
+             <Zap className="w-6 h-6 text-[#2F6FED] drop-shadow-sm" />
              <div>
                <h4 className="text-[#F7F9FC] font-black tracking-tight drop-shadow-sm">IntelligenceATS</h4>
                <p className="text-[10px] text-[#94A3B8] uppercase tracking-widest mt-0.5">AI-Assisted Recruitment Intelligence Platform</p>
