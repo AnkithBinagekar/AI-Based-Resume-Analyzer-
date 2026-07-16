@@ -1,6 +1,7 @@
 import os
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
+# FIXED: Replaced the deprecated langchain_community import
+from langchain_chroma import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 
@@ -47,7 +48,8 @@ def ingest_resume_to_vector_db(resume_text: str, candidate_id: str):
     except Exception as e:
         print(f"❌ [RAG Engine] Ingestion Error for {candidate_id}: {e}")
 
-def retrieve_relevant_chunks(candidate_id: str, question: str, k: int = 4):
+# FIXED: Increased default k to 5 to pull more context
+def retrieve_relevant_chunks(candidate_id: str, question: str, k: int = 5):
     """
     Retrieves the top 'k' most relevant chunks for a specific candidate based on the question.
     """

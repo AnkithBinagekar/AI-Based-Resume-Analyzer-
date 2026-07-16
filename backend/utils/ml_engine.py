@@ -100,66 +100,93 @@ class AIResumeAnalyzerEngine:
             return []
 
     def compute_hybrid_features(self, resume_text, jd_text):
-        # --- NEW DEFENSIVE TEXT CLEANING FOR OCR ---
-        resume_text = re.sub(r'\s+', ' ', resume_text).strip()
-        jd_text = re.sub(r'\s+', ' ', jd_text).strip()
+        # --- 1. DEFENSIVE TEXT CLEANING ---
+        resume_text_clean = re.sub(r'\s+', ' ', resume_text).strip().lower()
+        jd_text_clean = re.sub(r'\s+', ' ', jd_text).strip().lower()
         
-        # --- THE FINAL HYBRID ARCHITECTURE ---
-        # 1. Core Extraction (100% Local, Offline, Dictionary-Backed)
+        # --- 2. FREQUENCY-WEIGHTED SKILL EXTRACTION ---
         raw_resume_skills = self.extract_skills_local_ner(resume_text)
         raw_jd_skills = self.extract_skills_local_ner(jd_text)
         
-        # Strip random single letters just in case
         resume_skills = [s for s in raw_resume_skills if len(s) > 1 or s.lower() in ['c', 'r']]
         jd_skills = [s for s in raw_jd_skills if len(s) > 1 or s.lower() in ['c', 'r']]
         
+        # Calculate Weight based on frequency in JD (Critical skills appear more often)
+        jd_skill_weights = {}
+        for skill in jd_skills:
+            count = jd_text_clean.count(skill.lower())
+            jd_skill_weights[skill] = 1 + count # Base weight 1 + frequency
+            
+        total_jd_skill_weight = sum(jd_skill_weights.values())
+        
         resume_skills_lower = [s.lower() for s in resume_skills]
         common_skills = [jd_skill for jd_skill in jd_skills if jd_skill.lower() in resume_skills_lower]
-                
-        common_skills = list(set(common_skills))
-        jd_skills = list(set(jd_skills))
-        resume_skills = list(set(resume_skills))
         
-        skill_score = len(common_skills) / len(jd_skills) if len(jd_skills) > 0 else 0.0
+        # Calculate Earned Weight
+        earned_skill_weight = sum(jd_skill_weights[skill] for skill in common_skills)
+        skill_score = earned_skill_weight / total_jd_skill_weight if total_jd_skill_weight > 0 else 0.0
         
-        # 2. Semantic & Lexical Vectors (100% Local SBERT & TF-IDF)
+        # --- 3. CONTRASTIVE SEMANTIC & LEXICAL VECTORS ---
         res_emb = self.sbert_model.encode([resume_text])
         jd_emb = self.sbert_model.encode([jd_text])
-        semantic_score = cosine_similarity(res_emb, jd_emb)[0][0]
+        raw_semantic = float(cosine_similarity(res_emb, jd_emb)[0][0])
         
+        # SBERT Baseline Fix: Stretch the 0.30-1.0 range to 0.0-1.0
+        semantic_score = max(0.0, (raw_semantic - 0.30) / 0.70)
+        
+        # Improved TF-IDF: max_df=0.85 removes generic terms (like "team", "agile", "experience")
         vectorizer = TfidfVectorizer(stop_words='english')
         try:
             tfidf_matrix = vectorizer.fit_transform([resume_text, jd_text])
-            lexical_score = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
+            lexical_score = float(cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0])
         except:
             lexical_score = 0.0
             
-        # 3. Use Custom Local Random Forest for Final Scoring
+        # --- 4. RANDOM FOREST PREDICTION (PRESERVED CORE ARCHITECTURE) ---
         if self.rf_scorer:
-            # Order MUST be: Lexical, Semantic, Skill Overlap
+            # We now feed the mathematically corrected, cleaner features into the RF
             features = np.array([[lexical_score, semantic_score, skill_score]])
-            final_score_percentage = self.rf_scorer.predict(features)[0]
-            final_score_percentage = max(0.0, min(100.0, final_score_percentage)) 
+            rf_prediction = self.rf_scorer.predict(features)[0]
+            base_score_percentage = max(0.0, min(100.0, rf_prediction)) 
         else:
             final_score = (skill_score * 0.4) + (semantic_score * 0.4) + (lexical_score * 0.2)
-            final_score_percentage = final_score * 100
+            base_score_percentage = final_score * 100
             
-        final_score_percentage = round(final_score_percentage, 2)
+        # --- 5. DETERMINISTIC CAREER COMPATIBILITY & POST-PENALTY ---
+        career_alignment_score = (semantic_score * 0.6) + (skill_score * 0.4)
+        is_career_mismatch = False
+        domain_multiplier = 1.0
         
-# --- NEW: ENTERPRISE SMART ALERTS LOGIC ---
+        # If alignment drops below 35%, apply a severe quadratic penalty to the RF score
+        if career_alignment_score < 0.35:
+            is_career_mismatch = True
+            domain_multiplier = (career_alignment_score / 0.35) ** 2 
+
+        final_score_percentage = round(base_score_percentage * domain_multiplier, 2)
+        
+        # --- 6. SMART ALERTS ---
         smart_alerts = []
-        
-        # 1. Domain Mismatch Alert
-        # If they match over 40% of skills, but the semantic meaning is below 35%
-        if skill_score > 0.40 and semantic_score < 0.35:
+        if is_career_mismatch:
+            smart_alerts.append({
+                "type": "fatal",
+                "title": "Career Compatibility Mismatch",
+                "message": f"The candidate's core background fundamentally misaligns with this role. A deterministic penalty was applied to the AI score."
+            })
+        elif career_alignment_score < 0.45:
+            # Related but distinct domains (e.g., Frontend dev applying for Backend)
             smart_alerts.append({
                 "type": "warning",
-                "title": "Possible Domain Mismatch",
+                "title": "Marginal Career Alignment",
+                "message": f"Domains are related but not identical. Overall contextual alignment is low despite a {int(skill_score * 100)}% foundational skill match."
+            })
+            
+        if skill_score > 0.40 and semantic_score < 0.35 and not is_career_mismatch:
+            smart_alerts.append({
+                "type": "warning",
+                "title": "Possible Domain Shift",
                 "message": "Candidate possesses the required hard skills, but their past experience context significantly differs from this role."
             })
             
-        # 2. Keyword Stuffing / Lexical Fraud Alert
-        # If they use the exact same words (high lexical) but sentences make no sense (low semantic)
         if lexical_score > 0.50 and semantic_score < 0.20:
             smart_alerts.append({
                 "type": "danger",
@@ -167,7 +194,7 @@ class AIResumeAnalyzerEngine:
                 "message": "High keyword matching with extremely low contextual meaning. Possible resume keyword stuffing."
             })
 
-        # Add smart_alerts to your final return dictionary
+        # --- 7. UNCHANGED API CONTRACT ---
         return {
             "final_match_score_percentage": final_score_percentage,
             "feature_breakdown": {
@@ -176,11 +203,14 @@ class AIResumeAnalyzerEngine:
                 "lexical_score": float(lexical_score)
             },
             "skill_analysis": {
-                "resume_skills_detected": resume_skills,
-                "jd_skills_detected": jd_skills,
-                "common_skills": common_skills
+                "resume_skills_detected": list(set(resume_skills)),
+                "jd_skills_detected": list(set(jd_skills)),
+                "common_skills": list(set(common_skills))
             },
-            "smart_alerts": smart_alerts # <--- Add this new key!
+            "career_compatibility": {
+                "score": round(career_alignment_score * 100, 1),
+                "is_mismatch": is_career_mismatch
+            },
+            "smart_alerts": smart_alerts
         }
-
        
