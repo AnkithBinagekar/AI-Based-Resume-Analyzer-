@@ -255,6 +255,26 @@ def extract_layout_aware_pdf_text(pdf_path):
     doc.close()
     return " \n\n ".join(full_text)
 
+def sanitize_tailored_resume(text: str) -> str:
+    """Sanitizes LLM output by removing conversational filler and explanatory footers."""
+    
+    # 1. Truncate trailing explanations using a robust catch-all regex
+    # re.DOTALL ensures that once a footer marker is hit, everything to the end of the string is removed.
+    footer_pattern = re.compile(
+        r'\n[#\*\-\s]*(?:I made the following changes|Changes made|Summary of changes|Explanation|Notes|Optimization summary|Key changes|Targeted rewriting|Upgrade verbs|Mirror vocabulary|Preserved technical context|Removed hallucination|No hallucination).*',
+        re.IGNORECASE | re.DOTALL
+    )
+    text = re.sub(footer_pattern, '', text)
+    
+    # 2. Remove conversational intro paragraphs (e.g., "Based on the provided...")
+    text = re.sub(r'(?i)^(Based on|Here is|Below is|Sure|I have).*?\n\n+', '', text)
+    
+    # 3. Remove "Optimized Resume" heading if the LLM injected it at the top
+    text = re.sub(r'(?i)^[#\*\-\s]*Optimized Resume[#\*\-\s]*\n+', '', text)
+    
+    return text.strip()
+
+
 # ==========================================
 # MAIN ATS ENDPOINTS
 # ==========================================
@@ -574,7 +594,7 @@ async def tailor_resume(
             max_tokens=3000
         )
         
-        tailored_markdown = chat_completion.choices[0].message.content.strip()
+        tailored_markdown = sanitize_tailored_resume(chat_completion.choices[0].message.content.strip())
         tailored_plaintext = strip_markdown_for_analysis(tailored_markdown)
         
         # =====================================================================
