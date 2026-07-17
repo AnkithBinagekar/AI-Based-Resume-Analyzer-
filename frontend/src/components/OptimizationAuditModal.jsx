@@ -46,10 +46,10 @@ const OptimizationAuditModal = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm font-sans">
       {/* Modal Container */}
-      <div className="bg-[#0A0D14] w-full max-w-5xl rounded-2xl border border-gray-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-[#1A1F2E]/95 backdrop-blur-3xl w-full max-w-5xl rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-gray-900/50">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/10 bg-[#1A1F2E]/40 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <FileSearch className="w-5 h-5 text-blue-400" />
             <h2 className="text-lg font-semibold text-gray-100 tracking-wide">AI Optimization Audit Report</h2>

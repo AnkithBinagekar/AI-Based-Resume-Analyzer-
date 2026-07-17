@@ -605,7 +605,7 @@ function HrDashboard() {
         </div>
       )}
 
-      <button onClick={() => setGlobalChatOpen(!globalChatOpen)} className="fixed bottom-8 right-8 w-16 h-16 bg-[#2F6FED]/90 backdrop-blur-md border border-white/20 hover:bg-[#2563EB] text-white rounded-full shadow-[0_10px_30px_rgba(47,111,237,0.6)] flex items-center justify-center transition-transform hover:scale-110 z-40">
+      <button onClick={() => setGlobalChatOpen(!globalChatOpen)} className="fixed bottom-8 right-8 w-16 h-16 bg-[#2F6FED]/90 backdrop-blur-md border border-white/20 hover:bg-[#2563EB] text-white rounded-full shadow-[0_10px_30px_rgba(47,111,237,0.6)] hover:shadow-[0_15px_40px_rgba(47,111,237,0.8)] flex items-center justify-center transition-all duration-300 ease-out hover:scale-110 active:scale-95 z-40">
         <Bot className="w-8 h-8" />
       </button>
 

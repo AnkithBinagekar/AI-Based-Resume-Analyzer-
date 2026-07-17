@@ -22,7 +22,7 @@ function CustomDropdown({ value, onChange, options, placeholder }) {
   const [isOpen, setIsOpen] = useState(false);
   const selectedOption = options?.find(opt => String(opt.value) === String(value));
   const displayLabel = selectedOption ? selectedOption.label : placeholder;
-
+  
   return (
     <div className="relative w-full">
       <div onClick={() => setIsOpen(!isOpen)} className="w-full px-4 py-3.5 rounded-xl border border-white/5 bg-[#1A1F2E]/60 backdrop-blur-md text-[#F7F9FC] hover:bg-[#1A1F2E]/80 transition-all text-sm font-medium shadow-inner flex justify-between items-center cursor-pointer">
@@ -89,14 +89,33 @@ function CandidateDashboard() {
   const [chatQuestion, setChatQuestion] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef(null);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory]);
   
   const [resultTab, setResultTab] = useState('overview');
   const [autoRedirect, setAutoRedirect] = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState(10);
+
+  const [previewMode, setPreviewMode] = useState('optimized');
+  const [showToast, setShowToast] = useState(false);
+  const [originalFileUrl, setOriginalFileUrl] = useState(null);
+
+  useEffect(() => {
+    if (file) {
+      const objectUrl = URL.createObjectURL(file);
+      setOriginalFileUrl(objectUrl);
+      return () => URL.revokeObjectURL(objectUrl);
+    }
+  }, [file]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory]);
+
+  useEffect(() => {
+    if (showToast) {
+      const timer = setTimeout(() => setShowToast(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showToast]);
 
   useEffect(() => { fetchJobs(); }, []);
   
@@ -209,7 +228,8 @@ function CandidateDashboard() {
         oldScore: singleResults.final_match_score_percentage,
         optimization_result: response.data.optimization_result || {} 
       });
-    } catch (err) { 
+      setShowToast(true);
+    } catch (err) {
       if (err.code === 'ECONNABORTED') alert("AI request timed out. Please try again.");
       else if (err.response?.status === 429) alert("AI rate limit reached. Please wait about one minute before trying again.");
       else alert("Failed to optimize resume"); 
@@ -304,8 +324,8 @@ function CandidateDashboard() {
           </div>
           
           <div className="flex items-center gap-2 bg-[#242B3D]/60 backdrop-blur-xl p-1.5 rounded-xl border border-white/10 shadow-lg">
-            <button onClick={toggleRole} className={`px-5 py-2 flex items-center gap-2 rounded-lg text-sm font-bold transition-all backdrop-blur-md ${userRole === 'candidate' ? 'bg-[#2F6FED]/90 border border-white/10 text-white shadow-[0_0_15px_rgba(47,111,237,0.4)]' : 'text-[#94A3B8] hover:text-[#F7F9FC] hover:bg-[#1A1F2E]/50 border border-transparent'}`}><Sparkles className="w-4 h-4"/> Candidate View</button>
-            <button onClick={toggleRole} className={`px-5 py-2 flex items-center gap-2 rounded-lg text-sm font-bold transition-all backdrop-blur-md ${userRole === 'recruiter' ? 'bg-[#2F6FED]/90 border border-white/10 text-white shadow-[0_0_15px_rgba(47,111,237,0.4)]' : 'text-[#94A3B8] hover:text-[#F7F9FC] hover:bg-[#1A1F2E]/50 border border-transparent'}`}><Building className="w-4 h-4"/> HR View</button>
+            <button onClick={toggleRole} className={`px-5 py-2 flex items-center gap-2 rounded-lg text-sm font-bold transition-all duration-300 ease-out backdrop-blur-md ${userRole === 'candidate' ? 'bg-[#2F6FED]/90 border border-white/10 text-white shadow-[0_0_15px_rgba(47,111,237,0.4)]' : 'text-[#94A3B8] hover:text-[#F7F9FC] hover:bg-[#1A1F2E]/50 border border-transparent'}`}><Sparkles className="w-4 h-4"/> Candidate View</button>
+            <button onClick={toggleRole} className={`px-5 py-2 flex items-center gap-2 rounded-lg text-sm font-bold transition-all duration-300 ease-out backdrop-blur-md ${userRole === 'recruiter' ? 'bg-[#2F6FED]/90 border border-white/10 text-white shadow-[0_0_15px_rgba(47,111,237,0.4)]' : 'text-[#94A3B8] hover:text-[#F7F9FC] hover:bg-[#1A1F2E]/50 border border-transparent'}`}><Building className="w-4 h-4"/> HR View</button>
           </div>
         </div>
 
@@ -412,12 +432,12 @@ function CandidateDashboard() {
                   <div className="absolute top-0 right-0 w-64 h-64 bg-[#2F6FED]/20 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
                   <div className="relative z-10">
                     <span className="px-3 py-1.5 bg-[#2F6FED]/20 backdrop-blur-md text-[#2F6FED] border border-[#2F6FED]/30 rounded-lg text-[10px] font-black uppercase tracking-widest inline-block shadow-sm">Intelligence Report</span>
-                    <h2 className="text-3xl font-black mt-4 leading-tight text-[#F7F9FC] drop-shadow-sm">Analysis Complete</h2>
+                    <h2 className="text-3xl font-extrabold tracking-tight mt-4 leading-tight text-[#F7F9FC] drop-shadow-sm">Analysis Complete</h2>
                     <p className="text-[#94A3B8] font-medium text-sm mt-2 flex items-center gap-2"><FileText className="w-4 h-4"/> {singleResults.processed_filename}</p>
                   </div>
                   
                   <div className="flex items-center gap-6 relative z-10">
-                    <button onClick={handleDownloadReport} className="flex items-center gap-2 bg-[#242B3D]/80 backdrop-blur-md hover:bg-white/10 text-[#F7F9FC] border border-white/10 px-5 py-2.5 rounded-xl font-bold transition-all shadow-md active:scale-95">
+                    <button onClick={handleDownloadReport} className="flex items-center gap-2 bg-[#242B3D]/80 backdrop-blur-md hover:bg-white/10 text-[#F7F9FC] border border-white/10 px-5 py-2.5 rounded-xl font-bold transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg shadow-md active:scale-95">
                       <Download className="w-5 h-5" /> Export
                     </button>
 
@@ -546,7 +566,7 @@ function CandidateDashboard() {
                           <CheckCircle className="w-4 h-4" /> Verified Matches
                         </h4>
                         <div className="flex flex-wrap gap-3">
-                          {singleResults.skill_analysis.common_skills?.map(skill => <span key={skill} className="px-4 py-2 bg-[#242B3D]/80 backdrop-blur-sm text-[#2FBF71] border border-[#2FBF71]/30 rounded-xl text-xs font-bold shadow-sm">{skill}</span>)}
+                          {singleResults.skill_analysis.common_skills?.map(skill => <span key={skill} className="px-4 py-2 bg-[#242B3D]/80 backdrop-blur-sm text-[#2FBF71] border border-[#2FBF71]/30 hover:border-[#2FBF71]/60 hover:bg-[#2FBF71]/10 rounded-xl text-xs font-bold shadow-sm transition-all duration-300 ease-out cursor-default">{skill}</span>)}
                           {(!singleResults.skill_analysis.common_skills || singleResults.skill_analysis.common_skills.length === 0) && <span className="text-sm font-medium text-[#94A3B8]">No matching skills found.</span>}
                         </div>
                       </div>
@@ -556,7 +576,7 @@ function CandidateDashboard() {
                           <AlertTriangle className="w-4 h-4" /> Missing Requirements
                         </h4>
                         <div className="flex flex-wrap gap-3">
-                          {missingSkills.map(skill => <span key={skill} className="px-4 py-2 bg-[#242B3D]/80 backdrop-blur-sm text-[#F59E0B] border border-[#F59E0B]/30 rounded-xl text-xs font-bold shadow-sm">{skill}</span>)}
+                          {missingSkills.map(skill => <span key={skill} className="px-4 py-2 bg-[#242B3D]/80 backdrop-blur-sm text-[#F59E0B] border border-[#F59E0B]/30 hover:border-[#F59E0B]/60 hover:bg-[#F59E0B]/10 rounded-xl text-xs font-bold shadow-sm transition-all duration-300 ease-out cursor-default">{skill}</span>)}
                           {missingSkills.length === 0 && <span className="text-sm font-medium text-[#94A3B8]">Perfect match. No missing skills.</span>}
                         </div>
                       </div>
@@ -605,12 +625,15 @@ function CandidateDashboard() {
                   {resultTab === 'tailor' && (
                     <div className="py-4">
                       {!tailorData ? (
-                        <div className="text-center bg-[#1A1F2E]/50 backdrop-blur-md rounded-3xl border border-white/5 p-16 shadow-inner">
-                          <Wand2 className="w-16 h-16 mx-auto mb-6 text-[#2F6FED] opacity-80" />
-                          <h3 className="text-2xl font-black text-[#F7F9FC] mb-3 drop-shadow-sm">AI Resume Optimization</h3>
-                          <p className="text-base font-medium text-[#94A3B8] mb-10 max-w-lg mx-auto">Generate an ATS-friendly, keyword-optimized version of this candidate's resume and instantly re-score it against the job requirements.</p>
-                          <button onClick={handleTailor} disabled={tailorLoading} className="bg-[#2F6FED]/90 backdrop-blur-md border border-white/10 hover:bg-[#2563EB] text-white font-bold py-4 px-10 rounded-xl transition-all shadow-[0_0_20px_rgba(47,111,237,0.4)] active:scale-95 disabled:opacity-70 disabled:shadow-none tracking-wide">
-                            {tailorLoading ? 'GENERATING & RE-SCORING...' : 'OPTIMIZE & RE-SCORE'}
+                        <div className="flex flex-col items-center justify-center bg-[#242B3D]/30 backdrop-blur-2xl rounded-3xl border border-white/5 p-20 shadow-[0_8px_32px_rgba(0,0,0,0.3)] text-center animate-in fade-in zoom-in-95">
+                          <div className="w-24 h-24 bg-[#2F6FED]/10 border border-[#2F6FED]/20 rounded-full flex items-center justify-center mb-6 shadow-inner relative">
+                             <div className="absolute inset-0 bg-[#2F6FED]/20 rounded-full blur-xl animate-pulse"></div>
+                             <Wand2 className="w-10 h-10 text-[#2F6FED] relative z-10" />
+                          </div>
+                          <h3 className="text-3xl font-extrabold text-[#F7F9FC] mb-4 tracking-tight drop-shadow-sm">AI Resume Optimization</h3>
+                          <p className="text-[#94A3B8] mb-10 font-medium text-base max-w-md mx-auto leading-relaxed">Your optimized document will appear here. The engine will restructure content, elevate action verbs, and inject missing JD keywords to maximize ATS compatibility.</p>
+                          <button onClick={handleTailor} disabled={tailorLoading} className="bg-[#2F6FED]/90 backdrop-blur-md border border-white/10 hover:bg-[#2563EB] text-white font-bold py-4 px-12 rounded-xl transition-all duration-300 ease-out shadow-[0_0_20px_rgba(47,111,237,0.3)] hover:shadow-[0_0_30px_rgba(47,111,237,0.5)] active:scale-[0.98] disabled:opacity-50 disabled:shadow-none tracking-wider flex items-center gap-3">
+                            {tailorLoading ? <><span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> OPTIMIZING PROFILE...</> : <><Sparkles className="w-5 h-5"/> OPTIMIZE & RE-SCORE</>}
                           </button>
                         </div>
                       ) : (
@@ -709,65 +732,73 @@ function CandidateDashboard() {
           
         </div>
 
-        {/* 3. Audit Checklist: Strictly renders backend array with matched icons */}
+        {/* 3. Audit Checklist: Grammarly-Style Enterprise Summary Grid */}
         {auditLog.length > 0 && (
-          <div className="mt-8 border-t border-white/10 pt-6 relative z-10 w-full">
-            <ul className="space-y-3">
+          <div className="mt-8 border-t border-white/10 pt-8 relative z-10 w-full">
+            <h4 className="text-xs font-bold text-[#94A3B8] uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-[#2F6FED]" /> Optimization Summary
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {auditLog.map((log, idx) => {
                 let Icon = CheckCircle;
                 let iconColor = "text-[#2FBF71]";
+                let bgColor = "bg-[#2FBF71]/10";
+                let borderColor = "border-[#2FBF71]/20";
                 let cleanLog = log.replace(/[✅⚠️🚨]/g, '').trim();
 
                 if (log.includes("⚠️")) {
                   Icon = AlertTriangle;
                   iconColor = "text-[#F59E0B]";
+                  bgColor = "bg-[#F59E0B]/10";
+                  borderColor = "border-[#F59E0B]/20";
                 } else if (log.includes("🚨")) {
                   Icon = XCircle;
                   iconColor = "text-[#E85D75]";
+                  bgColor = "bg-[#E85D75]/10";
+                  borderColor = "border-[#E85D75]/20";
                 }
 
                 return (
-                  <li key={idx} className="text-sm font-medium text-[#F7F9FC] flex items-start gap-3">
+                  <div key={idx} className={`flex items-start gap-3 p-4 rounded-xl border ${borderColor} ${bgColor} backdrop-blur-md shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5`}>
                     <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${iconColor}`} />
-                    <span>{cleanLog}</span>
-                  </li>
+                    <span className="text-sm font-medium text-[#F7F9FC] leading-relaxed">{cleanLog}</span>
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           </div>
         )}
       </div>
 
       <div className="mt-8 space-y-4">
-        {/* 5. Renamed "Source Document" to "Original Resume" */}
-        <div className={`flex flex-col sm:flex-row sm:justify-between sm:items-center bg-[#1A1F2E]/80 backdrop-blur-md p-5 rounded-2xl border transition-all ${!isSafe ? 'border-[#2F6FED]/50 shadow-[0_0_15px_rgba(47,111,237,0.15)]' : 'border-white/5 shadow-inner'}`}>
+        <div className={`flex flex-col sm:flex-row sm:justify-between sm:items-center bg-[#1A1F2E]/80 backdrop-blur-md p-5 rounded-2xl border transition-all duration-300 ${!isSafe ? 'border-[#2F6FED]/50 shadow-[0_0_20px_rgba(47,111,237,0.15)]' : 'border-white/5 shadow-inner'}`}>
           <div className="mb-4 sm:mb-0">
-            <h4 className="text-sm font-black text-[#F7F9FC] uppercase tracking-widest flex items-center gap-2">
-              <FileText className="w-4 h-4 text-[#94A3B8]"/> Original Resume {(!isSafe) && <span className="text-[#2F6FED] ml-1">(Recommended)</span>}
+            <h4 className="text-sm font-bold text-[#F7F9FC] uppercase tracking-widest flex items-center gap-2">
+              <FileText className="w-4 h-4 text-[#94A3B8]"/> Original Resume {(!isSafe) && <span className="text-[#2F6FED] ml-2 text-[10px] bg-[#2F6FED]/10 px-2 py-0.5 rounded border border-[#2F6FED]/20">Recommended</span>}
             </h4>
-            <p className="text-[10px] text-[#94A3B8] font-bold mt-1.5 tracking-wide">Your original uploaded resume</p>
+            <p className="text-xs text-[#94A3B8] font-medium mt-1.5 tracking-wide">The candidate's unmodified source document.</p>
           </div>
           <div className="flex gap-3">
-            <button onClick={handleDownloadOriginal} className="w-full sm:w-auto bg-[#2F6FED]/10 hover:bg-[#2F6FED]/20 text-[#2F6FED] border border-[#2F6FED]/30 font-black tracking-wide py-2 px-6 rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2 text-xs">
+            <button onClick={handleDownloadOriginal} className="w-full sm:w-auto bg-[#242B3D]/80 hover:bg-[#374151] text-[#F7F9FC] border border-white/10 font-bold tracking-wide py-2.5 px-6 rounded-xl transition-all duration-300 ease-out hover:-translate-y-0.5 shadow-sm active:scale-95 flex items-center justify-center gap-2 text-xs">
               <Download className="w-4 h-4"/> DOWNLOAD
             </button>
           </div>
         </div>
         
-        <div className={`flex flex-col sm:flex-row sm:justify-between sm:items-center bg-[#1A1F2E]/80 backdrop-blur-md p-5 rounded-2xl border transition-all ${isSafe ? 'border-[#2FBF71]/50 shadow-[0_0_15px_rgba(47,191,113,0.15)]' : 'border-white/5 shadow-inner'}`}>
+        <div className={`flex flex-col sm:flex-row sm:justify-between sm:items-center bg-[#1A1F2E]/80 backdrop-blur-md p-5 rounded-2xl border transition-all duration-300 ${isSafe ? 'border-[#2FBF71]/50 shadow-[0_0_20px_rgba(47,191,113,0.15)]' : 'border-white/5 shadow-inner'}`}>
           <div className="mb-4 sm:mb-0">
-            <h4 className="text-sm font-black text-[#F7F9FC] uppercase tracking-widest flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#94A3B8]"/> AI-Optimized Revision {(isSafe) && <span className="text-[#2FBF71] ml-1">(Recommended)</span>}
+            <h4 className="text-sm font-bold text-[#F7F9FC] uppercase tracking-widest flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-[#2FBF71]"/> Optimized Resume {(isSafe) && <span className="text-[#2FBF71] ml-2 text-[10px] bg-[#2FBF71]/10 px-2 py-0.5 rounded border border-[#2FBF71]/20">Recommended</span>}
             </h4>
-            <p className={`text-[10px] font-bold mt-1.5 tracking-wide ${isSafe ? 'text-[#94A3B8]' : 'text-[#F59E0B]'}`}>
-              {isSafe ? 'Formatted for immediate application' : 'Needs review before application'}
+            <p className={`text-xs font-medium mt-1.5 tracking-wide ${isSafe ? 'text-[#94A3B8]' : 'text-[#F59E0B]'}`}>
+              {isSafe ? 'Validated and ready for ATS submission.' : 'Review required due to low contextual preservation.'}
             </p>
           </div>
           <div className="flex gap-3">
-            <button onClick={() => setShowTailoredPreview(true)} className="flex-1 sm:flex-none bg-[#242B3D]/80 hover:bg-white/10 text-[#94A3B8] hover:text-[#F7F9FC] border border-white/10 font-black tracking-wide py-2 px-6 rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2 text-xs">
+            <button onClick={() => setShowTailoredPreview(true)} className="flex-1 sm:flex-none bg-[#242B3D]/80 hover:bg-[#374151] text-[#F7F9FC] border border-white/10 font-bold tracking-wide py-2.5 px-6 rounded-xl transition-all duration-300 ease-out hover:-translate-y-0.5 shadow-sm active:scale-95 flex items-center justify-center gap-2 text-xs">
               <Eye className="w-4 h-4"/> PREVIEW
             </button>
-            <button onClick={handleDownloadTailoredResume} className="flex-1 sm:flex-none bg-[#2FBF71]/10 hover:bg-[#2FBF71] text-[#2FBF71] hover:text-white border border-[#2FBF71]/30 font-black tracking-wide py-2 px-6 rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2 text-xs">
+            <button onClick={handleDownloadTailoredResume} className="flex-1 sm:flex-none bg-[#2FBF71]/10 hover:bg-[#2FBF71] text-[#2FBF71] hover:text-white border border-[#2FBF71]/30 font-bold tracking-wide py-2.5 px-6 rounded-xl transition-all duration-300 ease-out hover:-translate-y-0.5 shadow-sm active:scale-95 flex items-center justify-center gap-2 text-xs">
               <Download className="w-4 h-4"/> DOWNLOAD
             </button>
           </div>
@@ -802,7 +833,7 @@ function CandidateDashboard() {
                           </button>
                         </div>
                       ) : (
-                        <div className="text-left bg-[#242B3D]/40 backdrop-blur-xl p-10 rounded-3xl border border-white/5 shadow-lg prose prose-invert max-w-none prose-p:font-medium prose-p:text-[#94A3B8] prose-p:leading-relaxed prose-p:my-2 prose-li:my-1 prose-ul:my-2 prose-li:marker:text-[#2F6FED]">
+                        <div className="text-left bg-[#242B3D]/40 backdrop-blur-xl p-10 rounded-3xl border border-white/5 shadow-lg prose prose-invert max-w-3xl mx-auto prose-p:font-medium prose-p:text-[#94A3B8] prose-p:leading-relaxed prose-p:my-2 prose-li:my-1 prose-ul:my-2 prose-li:marker:text-[#2F6FED]">
                           <ReactMarkdown>{coverLetterText}</ReactMarkdown>
                         </div>
                       )}
@@ -831,7 +862,7 @@ function CandidateDashboard() {
                               </p>
                               <div className="flex flex-col gap-2">
                                 {["Summarize candidate's experience", "What are their strongest skills?", "Are there any red flags or job hopping?", "Why did they score this way?"].map((prompt, i) => (
-                                  <button key={i} onClick={() => { setChatQuestion(prompt); }} className="text-xs font-bold text-left bg-[#1A1F2E]/60 hover:bg-[#2F6FED]/20 hover:text-[#2F6FED] border border-white/5 hover:border-[#2F6FED]/30 transition-all px-4 py-2.5 rounded-xl text-[#F7F9FC] shadow-sm backdrop-blur-md">
+                                  <button key={i} onClick={() => { setChatQuestion(prompt); }} className="text-xs font-bold text-left bg-[#1A1F2E]/60 hover:bg-[#2F6FED]/10 hover:text-[#2F6FED] border border-white/5 hover:border-[#2F6FED]/40 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md px-4 py-2.5 rounded-xl text-[#F7F9FC] shadow-sm backdrop-blur-md">
                                     {prompt}
                                   </button>
                                 ))}
@@ -860,7 +891,7 @@ function CandidateDashboard() {
                       </div>
                       
                       <form onSubmit={handleChat} className="p-5 bg-[#242B3D]/60 backdrop-blur-md border-t border-white/5 flex gap-3">
-                        <input type="text" value={chatQuestion} onChange={(e) => setChatQuestion(e.target.value)} placeholder="E.g., How many years of React experience do they have?" className="flex-1 bg-[#1A1F2E]/80 backdrop-blur-sm px-5 py-3.5 rounded-xl border border-white/5 text-[#F7F9FC] placeholder:text-[#94A3B8] outline-none focus:bg-[#1A1F2E] focus:ring-2 focus:ring-[#2F6FED]/50 transition-all text-sm font-medium shadow-inner" disabled={chatLoading} />
+                        <input type="text" value={chatQuestion} onChange={(e) => setChatQuestion(e.target.value)} placeholder="E.g., How many years of React experience do they have?" className="flex-1 bg-[#1A1F2E]/80 backdrop-blur-sm px-5 py-3.5 rounded-xl border border-white/5 focus:border-[#2F6FED]/50 text-[#F7F9FC] placeholder:text-[#94A3B8] outline-none focus:bg-[#1A1F2E] focus:ring-2 focus:ring-[#2F6FED]/50 transition-all duration-300 ease-out text-sm font-medium shadow-inner" disabled={chatLoading} />
                         <button type="submit" disabled={chatLoading || !chatQuestion.trim()} className="bg-[#2F6FED]/90 backdrop-blur-md hover:bg-[#2563EB] text-white px-6 py-3.5 rounded-xl font-bold transition-all border border-white/10 disabled:opacity-50 shadow-[0_0_20px_rgba(47,111,237,0.4)] active:scale-95 disabled:shadow-none"><ArrowRight className="w-5 h-5"/></button>
                       </form>
                     </div>
@@ -906,7 +937,7 @@ function CandidateDashboard() {
                         : "Severe gap in required technical skills.";
 
                       return (
-                        <div key={idx} className="bg-[#242B3D]/60 p-4 rounded-xl border border-white/5 flex items-center justify-between shadow-sm hover:border-[#2F6FED]/30 transition-all group">
+                        <div key={idx} className="bg-[#242B3D]/60 p-4 rounded-xl border border-white/5 flex items-center justify-between shadow-sm hover:border-[#2F6FED]/40 hover:bg-[#1A1F2E]/60 transition-all duration-300 ease-out hover:-translate-y-0.5 group cursor-pointer">
                           <div className="flex items-center gap-4 overflow-hidden flex-1">
                             <div className="w-8 h-8 rounded-lg bg-[#2F6FED]/10 text-[#2F6FED] flex items-center justify-center font-black text-xs border border-[#2F6FED]/30">#{idx + 1}</div>
                             <div className="flex-1 overflow-hidden pr-4">
@@ -956,7 +987,7 @@ function CandidateDashboard() {
                 <div className="w-32 h-32 bg-[#1A1F2E]/80 backdrop-blur-md border border-white/5 text-[#94A3B8] rounded-full flex items-center justify-center shadow-inner relative">
                   <span className="absolute top-0 right-0 w-5 h-5 bg-[#2F6FED] rounded-full animate-ping"></span>
                   <span className="absolute top-0 right-0 w-5 h-5 bg-[#2F6FED]/90 border border-white/30 rounded-full shadow-[0_0_15px_rgba(47,111,237,0.9)]"></span>
-                  <Search className="w-12 h-12" />
+                  <Search className="w-12 h-12 animate-pulse text-[#2F6FED]" />
                 </div>
                 <div>
                   <h3 className="text-3xl font-black text-[#F7F9FC] tracking-tight mb-3 drop-shadow-sm">Scanner Standby</h3>
@@ -969,31 +1000,96 @@ function CandidateDashboard() {
       </div>
 
       {showTailoredPreview && tailorData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0A0D14]/80 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="bg-[#242B3D]/80 backdrop-blur-3xl rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.6)] border border-white/10 w-full max-w-4xl max-h-[95vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center sm:p-6 bg-[#0A0D14]/90 backdrop-blur-sm animate-in fade-in duration-300 font-sans">
+          <div className="bg-[#0F1523] sm:rounded-2xl shadow-[0_0_80px_rgba(0,0,0,0.8)] border border-white/10 w-full h-full sm:max-h-full sm:max-w-6xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
             
-            <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-[#1A1F2E]/40 backdrop-blur-md">
-              <h3 className="text-lg font-black text-[#F7F9FC] flex items-center gap-2">
-                <FileText className="w-5 h-5"/> ATS-Optimized Document Preview
-              </h3>
-              <div className="flex items-center gap-4">
-                 <button onClick={handleDownloadTailoredResume} className="text-xs font-bold bg-[#2FBF71]/20 text-[#2FBF71] border border-[#2FBF71]/30 px-4 py-2 rounded-lg hover:bg-[#2FBF71] hover:text-white transition-colors shadow-sm flex items-center gap-2">
-                   <Download className="w-4 h-4"/> Download PDF
-                 </button>
-                 <button onClick={() => setShowTailoredPreview(false)} className="w-10 h-10 bg-[#1A1F2E]/50 hover:bg-white/10 text-[#94A3B8] hover:text-[#F7F9FC] rounded-full flex items-center justify-center transition-colors font-bold border border-white/5 backdrop-blur-md">
+            {/* Document Viewer Toolbar */}
+            <div className="h-16 px-5 border-b border-white/10 bg-[#1A1F2E] flex items-center justify-between shrink-0 shadow-sm">
+              <div className="flex items-center gap-4 w-1/3">
+                <div className="w-9 h-9 rounded-lg bg-[#2FBF71]/10 flex items-center justify-center border border-[#2FBF71]/20 text-[#2FBF71]">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-[#F7F9FC] leading-tight truncate">
+                    {previewMode === 'optimized' ? `Optimized_Resume_${singleResults?.processed_filename?.replace('.pdf', '') || 'Candidate'}.pdf` : file?.name || 'Original_Document.pdf'}
+                  </h3>
+                  <div className="flex items-center gap-3 mt-1">
+                    <p className="text-[10px] text-[#2FBF71] uppercase tracking-wider font-bold">
+                      {previewMode === 'optimized' ? 'AI Optimized • Ready for Export' : 'Original Source Document'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Segmented Control */}
+              <div className="flex items-center bg-[#0A0D14]/80 backdrop-blur-md p-1 rounded-lg border border-white/5 w-auto justify-center">
+                <button 
+                  onClick={() => setPreviewMode('original')}
+                  className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all duration-200 ease-out ${previewMode === 'original' ? 'bg-[#242B3D] text-[#F7F9FC] shadow-sm border border-white/10' : 'text-[#94A3B8] hover:text-[#F7F9FC]'}`}
+                >
+                  Original
+                </button>
+                <button 
+                  onClick={() => setPreviewMode('optimized')}
+                  className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all duration-200 ease-out ${previewMode === 'optimized' ? 'bg-[#242B3D] text-[#F7F9FC] shadow-sm border border-white/10' : 'text-[#94A3B8] hover:text-[#F7F9FC]'}`}
+                >
+                  Optimized
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3 w-1/3 justify-end">
+                 {previewMode === 'optimized' && (
+                   <button onClick={handleDownloadTailoredResume} className="h-9 px-5 text-xs font-bold bg-[#2F6FED]/90 hover:bg-[#2563EB] text-white rounded-lg transition-all shadow-[0_0_15px_rgba(47,111,237,0.3)] flex items-center gap-2 active:scale-95">
+                     <Download className="w-4 h-4"/> EXPORT PDF
+                   </button>
+                 )}
+                 {previewMode === 'optimized' && <div className="w-px h-6 bg-white/10 mx-1"></div>}
+                 <button onClick={() => setShowTailoredPreview(false)} className="h-9 w-9 hover:bg-white/10 text-[#94A3B8] hover:text-[#E85D75] rounded-lg flex items-center justify-center transition-colors">
                    <X className="w-5 h-5" />
                  </button>
               </div>
             </div>
 
-            <div className="overflow-y-auto flex-1 custom-scrollbar p-6 bg-[#0A0D14]/50 flex justify-center">
-               <div className="bg-white text-black w-full max-w-[850px] min-h-[1100px] p-12 shadow-2xl" style={{ fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
-                   <div className="prose prose-sm max-w-none text-gray-900 prose-h1:text-center prose-h1:text-3xl prose-h1:font-black prose-h1:mb-2 prose-h1:tracking-tight prose-h1:text-black prose-h2:text-lg prose-h2:font-black prose-h2:border-b-2 prose-h2:border-black prose-h2:pb-1 prose-h2:mt-6 prose-h2:mb-3 prose-h2:uppercase prose-h2:tracking-widest prose-h2:text-black prose-h3:text-base prose-h3:font-bold prose-h3:mt-4 prose-h3:mb-1 prose-h3:text-black prose-p:text-sm prose-p:my-1 prose-p:leading-relaxed prose-p:text-center prose-ul:mt-2 prose-ul:mb-4 prose-ul:list-disc prose-ul:pl-5 prose-li:text-sm prose-li:my-1 prose-li:leading-relaxed prose-li:marker:text-black prose-strong:font-bold prose-strong:text-black">
-                      <ReactMarkdown>{tailorData.text}</ReactMarkdown>
-                   </div>
+            {/* Document Canvas Backdrop */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#0A0D14] p-6 sm:p-12 block">
+               {/* The "Paper" Component */}
+               <div className={`bg-white text-black w-full max-w-[850px] mx-auto mb-12 shadow-[0_0_40px_rgba(0,0,0,0.6)] ring-1 ring-black/10 rounded-sm transition-opacity duration-300 ease-in-out ${previewMode === 'original' ? 'p-0 h-[1100px]' : 'p-10 sm:p-16 min-h-[1100px]'}`} style={{ fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+                   {previewMode === 'optimized' ? (
+                     <div className="prose prose-sm max-w-none text-gray-900 prose-h1:text-center prose-h1:text-3xl prose-h1:font-black prose-h1:mb-2 prose-h1:tracking-tight prose-h1:text-black prose-h2:text-lg prose-h2:font-black prose-h2:border-b-2 prose-h2:border-black prose-h2:pb-1 prose-h2:mt-6 prose-h2:mb-3 prose-h2:uppercase prose-h2:tracking-widest prose-h2:text-black prose-h3:text-base prose-h3:font-bold prose-h3:mt-4 prose-h3:mb-1 prose-h3:text-black prose-p:text-sm prose-p:my-1 prose-p:leading-relaxed prose-p:text-left prose-ul:mt-2 prose-ul:mb-4 prose-ul:list-disc prose-ul:pl-5 prose-li:text-sm prose-li:my-1 prose-li:leading-relaxed prose-li:marker:text-black prose-strong:font-bold prose-strong:text-black animate-in fade-in duration-300">
+                        <ReactMarkdown>{tailorData.text}</ReactMarkdown>
+                     </div>
+                   ) : (
+                     <div className="w-full h-full animate-in fade-in duration-300">
+                        {originalFileUrl ? (
+                          <iframe src={originalFileUrl} title="Original Document" className="w-full h-full rounded-sm" frameBorder="0" />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full text-gray-400 p-16">
+                            <AlertTriangle className="w-12 h-12 mb-4 opacity-50" />
+                            <p className="font-semibold text-sm">Original document preview unavailable</p>
+                          </div>
+                        )}
+                     </div>
+                   )}
                </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {showToast && (
+        <div className="fixed bottom-8 right-8 z-[110] animate-in slide-in-from-bottom-5 fade-in duration-300 font-sans">
+          <div className="bg-[#1A1F2E]/95 backdrop-blur-xl border border-[#2FBF71]/30 p-4 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] flex items-start gap-4 max-w-sm">
+            <div className="bg-[#2FBF71]/20 p-2 rounded-full mt-0.5 shrink-0">
+              <CheckCircle className="w-5 h-5 text-[#2FBF71]" />
+            </div>
+            <div>
+              <h4 className="text-[#F7F9FC] font-bold text-sm">Resume Optimized Successfully</h4>
+              <p className="text-[#94A3B8] text-xs font-medium mt-1 leading-relaxed">Ready for preview and PDF export.</p>
+            </div>
+            <button onClick={() => setShowToast(false)} className="text-[#94A3B8] hover:text-[#F7F9FC] transition-colors shrink-0">
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}

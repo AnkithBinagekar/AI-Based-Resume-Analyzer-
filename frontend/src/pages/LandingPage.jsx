@@ -27,7 +27,7 @@ function LandingPage() {
         <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.scrollTo(0, 0)}>
           <Zap className="w-8 h-8 text-[#2F6FED] drop-shadow-[0_0_15px_rgba(47,111,237,0.6)] group-hover:scale-110 transition-transform" />
           <span className="text-xl font-black text-[#F7F9FC] tracking-tight drop-shadow-sm">
-            Intelligence<span className="text-[#94A3B8] font-medium hidden sm:inline">ATS</span>
+            Resume<span className="text-[#94A3B8] font-medium hidden sm:inline">Intelligence</span>
           </span>
         </div>
         <div className="hidden md:flex gap-8 text-sm font-semibold text-[#94A3B8]">

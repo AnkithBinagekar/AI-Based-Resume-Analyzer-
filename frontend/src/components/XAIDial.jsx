@@ -50,7 +50,7 @@ const XAIDial = ({ featureBreakdown }) => {
             {/* Axis Labels (Muted Slate) */}
             <PolarAngleAxis 
               dataKey="subject" 
-              tick={{ fill: '#94A3B8', fontSize: 11, fontWeight: '800' }} 
+              tick={{ fill: '#94A3B8', fontSize: 11, fontWeight: '600' }} 
             />
             <PolarRadiusAxis 
               angle={30} 
