@@ -13,7 +13,7 @@ import {
   FileText, UploadCloud, ShieldCheck, Download, AlertTriangle, 
   CheckCircle, Sparkles, Wand2, Mail, Bot, ArrowRight, Zap, 
   Target, LayoutDashboard, Sliders, ChevronDown, X, Building,
-  Search, Eye, TrendingUp, TrendingDown, Minus, XCircle
+  Search, Eye, TrendingUp, TrendingDown, Minus, XCircle, Info
 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
@@ -75,6 +75,7 @@ function CandidateDashboard() {
   const [bulkResults, setBulkResults] = useState(null); 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fraudReport, setFraudReport] = useState(null);
   
  const [loadingText, setLoadingText] = useState("INITIATE SCAN");
   
@@ -158,7 +159,7 @@ function CandidateDashboard() {
     if (jdMode === 'text' && !jd) return setError("Please paste a Job Description.");
     if (jdMode === 'file' && !jdFile) return setError("Please upload a Job Description file.");
 
-    setLoading(true); setError(''); setSingleResults(null); setBulkResults(null); setTailorData(null); setCoverLetterText(''); setChatHistory([]); setResultTab('overview');
+    setLoading(true); setError(''); setFraudReport(null); setSingleResults(null); setBulkResults(null); setTailorData(null); setCoverLetterText(''); setChatHistory([]); setResultTab('overview');
 
     const formData = new FormData();
     formData.append(uploadMode === 'single' ? 'resume_file' : 'resume_zip', file);
@@ -175,22 +176,34 @@ function CandidateDashboard() {
     }
 
     const loadingSteps = [
-      "EXTRACTING DOCUMENT PAYLOAD...",
-      "VECTORIZING SEMANTIC CONTEXT...",
-      "RUNNING RANDOM FOREST ENSEMBLE...",
-      "COMPILING EXPLAINABLE AI REPORT..."
+      "Uploading Resume...",
+      "Validating Document Structure...",
+      "Running Security Scan...",
+      "Checking Hidden Content...",
+      "Verifying Document Integrity...",
+      "Preparing Security Report...",
+      "Generating Security Report..."
     ];
     let stepIndex = 0;
     setLoadingText(loadingSteps[0]);
     const stepInterval = setInterval(() => {
-      stepIndex = (stepIndex + 1) % loadingSteps.length;
-      setLoadingText(loadingSteps[stepIndex]);
-    }, 1500);
+      if (stepIndex < loadingSteps.length - 1) {
+        stepIndex++;
+        setLoadingText(loadingSteps[stepIndex]);
+      }
+    }, 700);
+
+    const startTime = Date.now();
 
     try {
       const endpoint = uploadMode === 'single' ? `${API_BASE_URL}/analyze` : `${API_BASE_URL}/analyze-bulk`;
       const response = await axios.post(endpoint, formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
       
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 4700) {
+        await new Promise(r => setTimeout(r, 4700 - elapsed));
+      }
+
       if (uploadMode === 'single') {
         setSingleResults(response.data.data); 
       } else {
@@ -199,6 +212,15 @@ function CandidateDashboard() {
         setRedirectCountdown(10);
       }
     } catch (err) {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 4700) {
+        await new Promise(r => setTimeout(r, 4700 - elapsed));
+      }
+
+      if (err.response?.status === 406 && err.response?.data?.detail?.is_fraud) {
+        setFraudReport(err.response.data.detail);
+        return;
+      }
       let errorMsg = "An error occurred during analysis.";
       if (err.code === 'ECONNABORTED') errorMsg = "AI request timed out. Please try again.";
       else if (err.response?.status === 429) errorMsg = "AI rate limit reached. Please wait about one minute before trying again.";
@@ -331,8 +353,8 @@ function CandidateDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-700">
           
-          <div className="lg:col-span-4 space-y-6">
-            <div className="bg-[#242B3D]/40 backdrop-blur-2xl rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/10 p-8 sticky top-24">
+          <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-24 lg:self-start z-20">
+            <div className="bg-[#242B3D]/40 backdrop-blur-2xl rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/10 p-8">
               <form onSubmit={handleAnalyze}>
                 
                 <div className="space-y-4 mb-8">
@@ -415,9 +437,9 @@ function CandidateDashboard() {
                   {loading ? <><span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> {loadingText}</> : "INITIATE SCAN"}
                 </button>
               </form>
-              
+
               {error && (
-                <div className={`mt-6 p-4 rounded-xl text-sm font-bold flex items-center gap-2 animate-in zoom-in-95 border backdrop-blur-md ${error.includes('FRAUD') ? 'bg-[#E85D75]/20 text-[#E85D75] border-[#E85D75]/40' : 'bg-[#F59E0B]/20 text-[#F59E0B] border-[#F59E0B]/40'}`}>
+                <div className="mt-6 p-4 rounded-xl text-sm font-bold flex items-center gap-2 animate-in zoom-in-95 border backdrop-blur-md bg-[#F59E0B]/20 text-[#F59E0B] border-[#F59E0B]/40">
                   <AlertTriangle className="w-5 h-5 shrink-0" /> {error}
                 </div>
               )}
@@ -425,7 +447,186 @@ function CandidateDashboard() {
           </div>
 
           <div className="lg:col-span-8">
-            {singleResults ? (
+            {fraudReport ? (
+              <div className="flex flex-col gap-8 animate-in fade-in duration-500">
+                {/* 1 & 8. Security Gate Status Banner */}
+                <div role="alert" className="bg-[#E85D75]/10 border border-[#E85D75]/30 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-5 shadow-sm backdrop-blur-md transition-all duration-300">
+                  <div className="bg-[#E85D75]/20 p-3 rounded-full shrink-0 flex items-center justify-center">
+                     <AlertTriangle className="w-7 h-7 text-[#E85D75]" />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-[#E85D75] font-black text-xl tracking-tight mb-2">Analysis Stopped</h2>
+                    <p className="text-[#F7F9FC] text-sm font-medium leading-relaxed max-w-3xl">
+                      This resume failed the Security Validation Gate. AI resume parsing, ATS scoring, and candidate analysis were intentionally skipped to prevent evaluation of a manipulated document.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Main Security Panel */}
+                <div className="bg-[#1A1F2E]/80 backdrop-blur-md rounded-3xl border border-[#E85D75]/50 shadow-[0_8px_32px_rgba(232,93,117,0.15)] overflow-hidden">
+                  <div className="px-6 sm:px-8 py-6 border-b border-[#E85D75]/20 bg-[#E85D75]/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <ShieldCheck className="w-6 h-6 text-[#E85D75]" />
+                        <h2 className="text-lg font-black text-[#F7F9FC] uppercase tracking-widest">Resume Security Scan</h2>
+                      </div>
+                      {/* 3. Security Summary Chips */}
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="h-8 px-4 bg-[#E85D75]/20 text-[#E85D75] text-[11px] font-bold uppercase tracking-wider rounded-lg border border-[#E85D75]/30 flex items-center gap-2 shadow-sm transition-all duration-300 hover:bg-[#E85D75]/30">
+                          <AlertTriangle className="w-3.5 h-3.5" /> {fraudReport.severity} Risk
+                        </span>
+                        <span className="h-8 px-4 bg-[#242B3D]/80 text-[#94A3B8] text-[11px] font-bold uppercase tracking-wider rounded-lg border border-white/10 flex items-center shadow-sm backdrop-blur-md transition-all duration-300 hover:bg-white/5">
+                          {fraudReport.checks?.length || 0} Checks Executed
+                        </span>
+                        <span className="h-8 px-4 bg-[#242B3D]/80 text-[#94A3B8] text-[11px] font-bold uppercase tracking-wider rounded-lg border border-white/10 flex items-center shadow-sm backdrop-blur-md transition-all duration-300 hover:bg-white/5">
+                          {fraudReport.checks?.filter(c => c.status === 'Detected').length || 0} Threat(s) Detected
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    
+                    {/* Left Column: Score & Timeline */}
+                    <div className="lg:col-span-1 flex flex-col gap-8">
+                      {/* 7. Document Integrity Score */}
+                      <div className="flex flex-col items-center justify-center p-8 bg-[#0A0D14]/50 rounded-2xl border border-[#E85D75]/20 text-center shadow-inner transition-all duration-300 hover:border-[#E85D75]/40 hover:bg-[#0A0D14]/70">
+                        <h4 className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-widest mb-3">Document Integrity Score</h4>
+                        <div className="flex items-baseline gap-1">
+                          <p className="text-7xl font-black text-[#E85D75] drop-shadow-md tracking-tighter leading-none">
+                            {100 - fraudReport.risk_score}
+                          </p>
+                          <span className="text-xl text-[#94A3B8] font-bold">/100</span>
+                        </div>
+                        <div className="mt-4 px-3 py-1 bg-[#E85D75]/10 border border-[#E85D75]/20 rounded-md text-[10px] font-bold text-[#E85D75] uppercase tracking-wider">
+                           Status: {fraudReport.severity} Risk
+                        </div>
+                      </div>
+
+                      {/* 6. Security Processing Timeline */}
+                      <div className="bg-[#0A0D14]/30 p-6 sm:p-8 rounded-2xl border border-white/5 shadow-inner flex flex-col h-full">
+                        <h4 className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-widest mb-6">Processing Pipeline</h4>
+                        <div className="relative border-l-2 border-[#374151]/50 ml-3.5 pl-6 space-y-7 pb-2 flex-1">
+                           <div className="relative flex items-center group">
+                             <CheckCircle className="w-5 h-5 text-[#2FBF71] absolute -left-[35px] bg-[#0A0D14] rounded-full ring-4 ring-[#0A0D14]" />
+                             <span className="text-xs font-bold text-[#F7F9FC] transition-colors group-hover:text-[#2FBF71]">Resume Uploaded</span>
+                           </div>
+                           <div className="relative flex items-center group">
+                             <CheckCircle className="w-5 h-5 text-[#2FBF71] absolute -left-[35px] bg-[#0A0D14] rounded-full ring-4 ring-[#0A0D14]" />
+                             <span className="text-xs font-bold text-[#F7F9FC] transition-colors group-hover:text-[#2FBF71]">Security Scan Completed</span>
+                           </div>
+                           <div className="relative flex items-center">
+                             <XCircle className="w-5 h-5 text-[#E85D75] absolute -left-[35px] bg-[#0A0D14] rounded-full ring-4 ring-[#0A0D14] shadow-[0_0_15px_rgba(232,93,117,0.4)]" />
+                             <span className="text-xs font-bold text-[#E85D75]">Security Validation Failed</span>
+                           </div>
+                           <div className="relative flex items-center opacity-40">
+                             <div className="w-2.5 h-2.5 rounded-full border-2 border-[#94A3B8] absolute -left-[30px] bg-[#0A0D14] ring-4 ring-[#0A0D14]"></div>
+                             <span className="text-xs font-medium text-[#94A3B8]">Resume Parsing</span>
+                           </div>
+                           <div className="relative flex items-center opacity-40">
+                             <div className="w-2.5 h-2.5 rounded-full border-2 border-[#94A3B8] absolute -left-[30px] bg-[#0A0D14] ring-4 ring-[#0A0D14]"></div>
+                             <span className="text-xs font-medium text-[#94A3B8]">Skill Extraction</span>
+                           </div>
+                           <div className="relative flex items-center opacity-40">
+                             <div className="w-2.5 h-2.5 rounded-full border-2 border-[#94A3B8] absolute -left-[30px] bg-[#0A0D14] ring-4 ring-[#0A0D14]"></div>
+                             <span className="text-xs font-medium text-[#94A3B8]">ATS Match Analysis</span>
+                           </div>
+                           <div className="relative flex items-center opacity-40">
+                             <div className="w-2.5 h-2.5 rounded-full border-2 border-[#94A3B8] absolute -left-[30px] bg-[#0A0D14] ring-4 ring-[#0A0D14]"></div>
+                             <span className="text-xs font-medium text-[#94A3B8]">AI Recommendation Engine</span>
+                           </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Details & Actions */}
+                    <div className="lg:col-span-2 flex flex-col gap-8">
+                      
+                      {/* 2. Explain Why No ATS Score Exists */}
+                      <div className="bg-[#E85D75]/10 border-l-4 border-[#E85D75] p-5 rounded-r-xl shadow-sm flex items-start gap-3 transition-all duration-300 hover:bg-[#E85D75]/15">
+                        <Info className="w-5 h-5 text-[#E85D75] shrink-0 mt-0.5" />
+                        <p className="text-sm font-medium text-[#E85D75] leading-relaxed">
+                          Candidate analysis was intentionally skipped because the uploaded resume did not pass document integrity validation.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <h4 className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-widest">Threat Summary</h4>
+                        <p className="text-sm text-[#F7F9FC] font-medium leading-relaxed bg-[#0A0D14]/50 p-5 rounded-xl border border-white/5 shadow-inner">
+                          {fraudReport.summary || "The uploaded resume contains document integrity violations that indicate attempted ATS manipulation. Analysis was safely terminated before candidate evaluation."}
+                        </p>
+                      </div>
+                      
+                      {/* 4. Security Findings Cards */}
+                      <div className="flex flex-col gap-3">
+                        <h4 className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-widest mb-1">Integrity Findings</h4>
+                        <div className="space-y-3">
+                          {fraudReport.checks?.map((check, idx) => (
+                            <div key={idx} className={`flex items-start gap-4 p-5 rounded-xl border transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md ${check.status === 'Detected' ? 'bg-[#E85D75]/10 border-[#E85D75]/20 hover:border-[#E85D75]/40' : 'bg-[#2FBF71]/10 border-[#2FBF71]/20 hover:border-[#2FBF71]/40'}`}>
+                              {check.status === 'Detected' ? (
+                                <div className="bg-[#E85D75]/20 p-1.5 rounded-full shrink-0">
+                                  <XCircle className="w-5 h-5 text-[#E85D75]" />
+                                </div>
+                              ) : (
+                                <div className="bg-[#2FBF71]/20 p-1.5 rounded-full shrink-0">
+                                  <CheckCircle className="w-5 h-5 text-[#2FBF71]" />
+                                </div>
+                              )}
+                              <div className="flex flex-col gap-1">
+                                <h5 className={`text-sm font-bold uppercase tracking-wider ${check.status === 'Detected' ? 'text-[#E85D75]' : 'text-[#2FBF71]'}`}>{check.name}</h5>
+                                <p className="text-sm text-[#94A3B8] font-medium leading-relaxed">{check.details}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 5. Improve Recommendation Section */}
+                      <div className="mt-2 p-6 bg-[#2F6FED]/10 border border-[#2F6FED]/20 rounded-xl shadow-sm transition-all duration-300 hover:border-[#2F6FED]/40 hover:bg-[#2F6FED]/15">
+                        <h4 className="text-[11px] font-bold text-[#2F6FED] uppercase tracking-widest mb-5 flex items-center gap-2">
+                          <Sparkles className="w-4 h-4" /> Recommended Actions
+                        </h4>
+                        {fraudReport.recommendation ? (
+                          <p className="text-sm text-[#F7F9FC] font-medium leading-relaxed">{fraudReport.recommendation}</p>
+                        ) : (
+                          <ul className="space-y-4">
+                            <li className="flex items-start gap-3 text-sm text-[#F7F9FC] font-medium">
+                              <CheckCircle className="w-5 h-5 text-[#2F6FED] shrink-0" /> Remove hidden keywords
+                            </li>
+                            <li className="flex items-start gap-3 text-sm text-[#F7F9FC] font-medium">
+                              <CheckCircle className="w-5 h-5 text-[#2F6FED] shrink-0" /> Remove white or microscopic text
+                            </li>
+                            <li className="flex items-start gap-3 text-sm text-[#F7F9FC] font-medium">
+                              <CheckCircle className="w-5 h-5 text-[#2F6FED] shrink-0" /> Export as a flattened PDF
+                            </li>
+                            <li className="flex items-start gap-3 text-sm text-[#F7F9FC] font-medium">
+                              <CheckCircle className="w-5 h-5 text-[#2F6FED] shrink-0" /> Upload the cleaned resume again
+                            </li>
+                          </ul>
+                        )}
+                      </div>
+
+                      {/* 6. Action Buttons */}
+                      <div className="flex flex-col sm:flex-row items-center gap-4 pt-6 border-t border-white/5">
+                        <button 
+                          onClick={() => { setFraudReport(null); setFile(null); }} 
+                          className="w-full sm:w-auto px-8 py-3.5 bg-[#E85D75]/90 hover:bg-[#E85D75] text-white text-sm font-bold rounded-xl transition-all duration-300 ease-out shadow-[0_0_20px_rgba(232,93,117,0.25)] hover:shadow-[0_0_30px_rgba(232,93,117,0.4)] hover:-translate-y-0.5 active:scale-95 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E85D75] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1A1F2E]"
+                        >
+                          Upload Clean Resume
+                        </button>
+                        <button 
+                          onClick={() => setFraudReport(null)} 
+                          className="w-full sm:w-auto px-8 py-3.5 bg-[#242B3D]/80 hover:bg-[#374151] text-[#F7F9FC] text-sm font-bold rounded-xl border border-white/10 transition-all duration-300 ease-out hover:-translate-y-0.5 shadow-sm active:scale-95 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#94A3B8] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1A1F2E]"
+                        >
+                          Dismiss Report
+                        </button>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : singleResults ? (
               <div className="bg-[#242B3D]/50 backdrop-blur-3xl rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/10 overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-700">
                 
                 <div className="bg-[#1A1F2E]/60 backdrop-blur-md p-8 text-[#F7F9FC] flex flex-col md:flex-row justify-between items-center gap-8 relative overflow-hidden border-b border-white/5">
