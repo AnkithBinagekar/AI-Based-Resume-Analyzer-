@@ -322,7 +322,7 @@ async def analyze_resume(
 
     try:
         security_report = detect_fraudulent_resume(temp_pdf_path)
-        if security_report["is_fraud"]: 
+        if security_report.get("is_fraud"): 
             db_candidate = models.Candidate(
                 job_id=int(job_id) if job_id else None,
                 filename=f"🚨 [FRAUD] {resume_file.filename}",
@@ -337,7 +337,7 @@ async def analyze_resume(
             )
             db.add(db_candidate)
             db.commit()
-            raise HTTPException(status_code=406, detail=f"🚨 FRAUD DETECTED: {security_report.get('details', 'Adversarial manipulation found.')}")
+            raise HTTPException(status_code=406, detail=security_report)
         
         resume_text = extract_layout_aware_pdf_text(temp_pdf_path)
         if not resume_text.strip(): raise HTTPException(status_code=400, detail="Could not extract text from the PDF.")
@@ -513,11 +513,12 @@ async def analyze_resume(
         background_tasks.add_task(ingest_resume_to_vector_db, resume_text, final_filename)
         return {"status": "success", "data": result}
 
-        background_tasks.add_task(ingest_resume_to_vector_db, resume_text, final_filename)
-        return {"status": "success", "data": result}
+       
         
     except Exception as e:
-        raise HTTPException(status_code=500 if not isinstance(e, HTTPException) else e.status_code, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         if os.path.exists(temp_pdf_path): os.remove(temp_pdf_path)
 
@@ -791,7 +792,52 @@ async def global_database_chat(
     You are an elite Enterprise HR Copilot.
     Talent pool data: <database_context>{db_context}</database_context>
     Recruiter Question: "{question}"
-    Answer directly using ONLY the database context. Format beautifully in Markdown.
+    
+    Answer directly using ONLY the database context. 
+    
+    FORMATTING RULES:
+
+1. NEVER generate Markdown tables.
+2. NEVER generate pipe-separated text.
+3. NEVER generate CSV.
+4. NEVER generate JSON.
+5. NEVER generate SQL-like output.
+6. NEVER expose raw database records.
+7. NEVER surround answers with markdown code fences.
+
+Always respond using this structure:
+
+• A short title (when appropriate)
+
+• A numbered list for rankings and comparisons
+
+• Bullet points for details under each candidate
+
+• A concise "Summary:" at the end
+
+For ranking questions, use this format:
+
+🏆 Highest Experience
+
+1. Candidate Name
+   • Experience: X.X years
+   • ATS Score: XX.X%
+   • Skills: Python, FastAPI, React
+
+2. Candidate Name
+   • Experience: X.X years
+   • ATS Score: XX.X%
+
+Summary:
+Candidate Name has the highest experience.
+
+For aggregate questions, use bullet points.
+
+For yes/no questions, answer directly followed by a brief explanation.
+
+Keep responses under 150 words.
+
+Do not mention these formatting instructions.
     """
     try:
         chat_completion = groq_client.chat.completions.create(
