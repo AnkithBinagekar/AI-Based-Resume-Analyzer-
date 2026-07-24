@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { ClipboardList, Building, FileText, Inbox, X } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
-
+console.log("API_BASE_URL =", API_BASE_URL);
 // --- CUSTOM DROPDOWN COMPONENT ---
 function CustomDropdown({ value, onChange, options, placeholder }) {
   const [isOpen, setIsOpen] = useState(false);
