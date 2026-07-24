@@ -52,28 +52,11 @@ function JobBoard() {
   useEffect(() => { fetchJobs(); }, []);
 
   const fetchJobs = async () => {
-  try {
-    console.log("Fetching jobs from:", `${API_BASE_URL}/api/jobs`);
-
-    const response = await axios.get(`${API_BASE_URL}/api/jobs`);
-
-    console.log("Response:", response.data);
-
-    setJobs(response.data.data || []);
-
-  } catch (err) {
-    console.error("ERROR:", err);
-
-    if (err.response) {
-      console.log("Status:", err.response.status);
-      console.log("Data:", err.response.data);
-    } else {
-      console.log("Message:", err.message);
-    }
-
-    alert(err.message);
-  }
-};
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/jobs`);
+      setJobs(response.data.data);
+    } catch (err) { console.error("Failed to fetch jobs", err); }
+  };
 
   const handleDeleteJob = async (e, jobId) => {
     e.stopPropagation(); 
