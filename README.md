@@ -810,8 +810,6 @@ If you discover a bug or have ideas to improve the platform, feel free to open a
 
 ## Ankith Uday Binagekar
 
-AI & Machine Learning Engineer
-
 Full Stack Developer
 
 Building AI-powered software focused on Natural Language Processing, Machine Learning, Explainable AI, and intelligent developer tools.
