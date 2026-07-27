@@ -647,7 +647,7 @@ docs/images/home.png
 ## 📄 Resume Upload
 
 ```
-docs/images/upload.png
+<img width="1437" height="957" alt="Candidate Dashboard Interface" src="https://github.com/user-attachments/assets/c6ec0a3d-3309-46b7-ac11-f629cec6fb85" />
 ```
 
 > Resume upload interface supporting PDF documents and Job Description input.
@@ -657,7 +657,7 @@ docs/images/upload.png
 ## 📊 ATS Analysis Dashboard
 
 ```
-docs/images/dashboard.png
+<img width="1437" height="957" alt="Candidate Dashboard Interface" src="https://github.com/user-attachments/assets/8af41fce-2b43-4b70-b28f-54ee75d68c58" />
 ```
 
 > Interactive dashboard displaying ATS score, semantic similarity, lexical similarity, technical skill analysis, and explainable insights.
@@ -667,7 +667,7 @@ docs/images/dashboard.png
 ## 🧠 Explainable AI Dashboard
 
 ```
-docs/images/explainability.png
+<img width="506" height="388" alt="XAI Overview" src="https://github.com/user-attachments/assets/6a76948a-e0a0-4cd6-acce-e70ac03addbe" />
 ```
 
 > Visual breakdown of candidate evaluation metrics with transparent scoring explanations.
@@ -676,7 +676,7 @@ docs/images/explainability.png
 
 ## 🎯 Resume Tailoring
 
-```
+``` 
 docs/images/tailoring.png
 ```
 
@@ -687,7 +687,10 @@ docs/images/tailoring.png
 ## 🛡 Validation Gate
 
 ```
-docs/images/validation.png
+<img width="1379" height="948" alt="Optimized audit" src="https://github.com/user-attachments/assets/8e8b1bf5-66cf-4307-8f38-1f7e511b235d" />
+
+<img width="685" height="921" alt="image" src="https://github.com/user-attachments/assets/57ce8327-9cc3-4689-b1dc-1ffc6bb41db9" />
+
 ```
 
 > Deterministic validation workflow preventing unsupported skills and hallucinated content.
@@ -697,7 +700,7 @@ docs/images/validation.png
 ## 🚨 Fraud Detection
 
 ```
-docs/images/fraud.png
+<img width="780" height="872" alt="Fraud" src="https://github.com/user-attachments/assets/d982f63b-ad74-409d-9ebc-26b707c6c583" />
 ```
 
 > Automatic detection of hidden keyword stuffing and suspicious resume manipulation.
@@ -707,7 +710,7 @@ docs/images/fraud.png
 ## 💬 Recruiter Copilot
 
 ```
-docs/images/copilot.png
+<img width="1020" height="1027" alt="RAG Chat" src="https://github.com/user-attachments/assets/22284d7a-c5eb-453c-b506-6261515f6297" />
 ```
 
 > Retrieval-Augmented Generation (RAG) assistant providing grounded answers about candidate profiles.
