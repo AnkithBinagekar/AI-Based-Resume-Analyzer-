@@ -819,12 +819,11 @@ https://github.com/AnkithBinagekar
 
 **LinkedIn**
 
-> Add your LinkedIn profile
+> [Ankith Binagekar](https://www.linkedin.com/in/ankithbinagekar/)
 
 **Email**
 
-> Add your professional email address
-
+> ankithbinagekar2002@gmail.com
 ---
 
 # ⭐ Support
